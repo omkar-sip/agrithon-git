@@ -1,6 +1,6 @@
-# 🌾 KisanSaathi
+# 🌾 Sarpanch AI
 
-> **KisanSaathi** is an intelligent, digital companion for the modern farmer. Designed as a Progressive Web Application (PWA), it aims to empower farmers with actionable insights, market connectivity, and tailored advisory across crop farming, livestock, poultry, and fisheries.
+> **Sarpanch AI** is an intelligent, digital companion for the modern farmer. Designed as a Progressive Web Application (PWA), it aims to empower farmers with actionable insights, market connectivity, and tailored advisory across crop farming, livestock, poultry, and fisheries.
 
 ---
 
@@ -19,13 +19,13 @@
 
 ## 🌍 Overview
 
-KisanSaathi leverages modern Web Technologies and Artificial Intelligence to provide real-time agricultural advisories. The platform is designed from the ground up to be accessible, scalable, and tailored to the unique physiological, temporal, and geographical needs of farmers.
+Sarpanch AI leverages modern Web Technologies and Artificial Intelligence to provide real-time agricultural advisories. The platform is designed from the ground up to be accessible, scalable, and tailored to the unique physiological, temporal, and geographical needs of farmers.
 
 ---
 
 ## 🏗 Architecture
 
-KisanSaathi adopts a modular, component-driven Frontend architecture integrated with scalable APIs. The App mimics a native experience through its PWA configurations and features offline-first capabilities where possible.
+Sarpanch AI adopts a modular, component-driven Frontend architecture integrated with scalable APIs. The App mimics a native experience through its PWA configurations and features offline-first capabilities where possible.
 
 ### Component Flow
 
@@ -109,7 +109,7 @@ While the initial iteration employs the **Google Gemini API** for advisory infer
 
 ## 🚀 Planned Features & Roadmap
 
-The following modules represent the crucial gaps waiting to be filled to transform **KisanSaathi** into a complete AgTech ecosystem.
+The following modules represent the crucial gaps waiting to be filled to transform **Sarpanch AI** into a complete AgTech ecosystem.
 
 ### Crop Farming – Things Still Missing
 

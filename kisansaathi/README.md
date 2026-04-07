@@ -1,73 +1,160 @@
-# React + TypeScript + Vite
+# 🌾 KisanSaathi
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> **KisanSaathi** is an intelligent, digital companion for the modern farmer. Designed as a Progressive Web Application (PWA), it aims to empower farmers with actionable insights, market connectivity, and tailored advisory across crop farming, livestock, poultry, and fisheries.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📑 Table of Contents
 
-## React Compiler
+1. [🌍 Overview](#-overview)
+2. [🏗 Architecture](#-architecture)
+3. [📂 Folder Structure](#-folder-structure)
+4. [🛠 Tech Stack](#-tech-stack)
+5. [🤖 AI & Machine Learning Pipeline](#-ai--machine-learning-pipeline)
+6. [🚀 Planned Features & Roadmap](#-planned-features--roadmap)
+7. [🤝 Contributing](#-contributing)
+8. [📄 License](#-license)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🌍 Overview
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+KisanSaathi leverages modern Web Technologies and Artificial Intelligence to provide real-time agricultural advisories. The platform is designed from the ground up to be accessible, scalable, and tailored to the unique physiological, temporal, and geographical needs of farmers.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🏗 Architecture
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+KisanSaathi adopts a modular, component-driven Frontend architecture integrated with scalable APIs. The App mimics a native experience through its PWA configurations and features offline-first capabilities where possible.
+
+### Component Flow
+
+| Layer | Responsibility | Technologies |
+| :--- | :--- | :--- |
+| **Presentation** | UI Rendering, Animations, PWA App Shell | React 19, Tailwind CSS, Framer Motion |
+| **State Management**| Global App State, User Session, Persistent Cache | Zustand, IDB-Keyval |
+| **Routing / Nav** | Screen transitions, Authentication guards | React Router v7 |
+| **Services / AI** | External data fetching, LLM prompts & inferences | Axios, Firebase SDK, Google Gen AI |
+
+---
+
+## 📂 Folder Structure
+
+The project strictly follows a scalable module-based layout.
+
+```text
+KisanSaathi/
+├── src/                        # Main Application Code
+│   ├── assets/                 # Static files (Icons, Images, PWA Manifests)
+│   ├── components/             # Reusable UI Architecture
+│   │   ├── layout/             # High-level Structural Components (Sidebar, NavBar, AppShell)
+│   │   ├── shared/             # Common Business Logic Components
+│   │   └── ui/                 # Atomic UI components (Buttons, Inputs, Modals)
+│   ├── hooks/                  # Custom React Hooks (e.g., useGeolocation)
+│   ├── i18n/                   # Internationalization / Translations (i18next)
+│   ├── pages/                  # Route-level Component Views
+│   │   ├── auth/               # Authentication Flows
+│   │   ├── community/          # Community Forums and SarpanchGPT agent
+│   │   ├── crop/               # Crop Management & Advisory
+│   │   ├── fishery/            # Aqua-culture module
+│   │   ├── home/               # Dashboard and Landing Views
+│   │   ├── livestock/          # Livestock Tracking and Management
+│   │   ├── poultry/            # Poultry details and Analytics
+│   │   ├── settings/           # User configurations
+│   │   └── splash/             # PWA Splash Screen and Onboarding
+│   ├── router/                 # React Router definitions and configuration
+│   ├── services/               # API clients, Firebase config, AI Service Wrappers
+│   ├── store/                  # Global Zustand Stores (e.g., useAlertStore)
+│   ├── types/                  # Global TypeScript Interfaces (e.g., fishery.ts)
+│   └── utils/                  # Helper functions and strict type guards
+├── public/                     # Vite public assets and Service Workers
+└── package.json                # Dependencies and project scripts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🛠 Tech Stack
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Category | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Framework** | [React 19](https://react.dev/) | UI library for creating isolated, interactive components |
+| **Build Tooling** | [Vite](https://vitejs.dev/) | Blazing fast HMR and optimized production bundles |
+| **Styling** | [Tailwind CSS 3](https://tailwindcss.com/) | Atomic utility classes for scalable, responsive design |
+| **UI Polish** | [Framer Motion](https://www.framer.com/motion/) | Smooth animations and native-like interactions |
+| **State Management** | [Zustand](https://github.com/pmndrs/zustand) | Bear-bones state management for React |
+| **Routing** | [React Router v7](https://reactrouter.com/) | Declarative application routing |
+| **Backend & Auth** | [Firebase](https://firebase.google.com/) | Authentication, Databases, and Storage |
+| **Local DB** | [IDB-Keyval](https://github.com/jakearchibald/idb-keyval/) | IndexedDB wrapper for simple persistent storage |
+| **GenAI (Current)**| [@google/generative-ai](https://ai.google.dev/) | Temporary integration for SarpanchGPT via Gemini API |
+| **PWA Support** | [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) | Service worker generation and manifest injection |
+
+---
+
+## 🤖 AI & Machine Learning Pipeline
+
+### Emphasizing Offline Real-Time Models (Hugging Face)
+
+While the initial iteration employs the **Google Gemini API** for advisory inference, a dedicated migration roadmap targets open-source, on-device (or edge-hosted) **Hugging Face** models. This is crucial for farmers lacking continuous, high-speed internet access.
+
+| Current System (Online API) | Planned Migration (Hugging Face / Offline-first) | Purpose & Benefit |
+| :--- | :--- | :--- |
+| **Gemini Pro (Text/Chat)** | `meta-llama/Llama-3-8B-Instruct` or `mistralai/Mistral-7B-Instruct-v0.2` | Runs conversational inference for **Sarpanch AI** locally or via lightweight edge-APIs. Ensures privacy and offline robustness. |
+| **Gemini Vision** | `llava-hf/llava-1.5-7b-hf` or `Qwen/Qwen-VL` | **Crop Doctor**: visual inference on crop diseases directly from uploaded images. Can be quantized via ONNX/TensorFlow Lite for mobile web. |
+| **Cloud Text-to-Speech** | `suno/bark` or `kakao-enterprise/vits-ljs` | **Voice Agent**: Converts native language answers directly to voice without requiring heavy cloud connections. |
+| **Cloud Speech-to-Text** | `openai/whisper-tiny` (or `whisper-base`) | **Voice Input**: Operates locally via WASM in the browser for multilingual voice ingestion. |
+
+*Note: Migrating to quantized models (GGUF via `transformers.js` in the browser) will allow the core AI features to operate completely offline as a true progressive web experience.*
+
+---
+
+## 🚀 Planned Features & Roadmap
+
+The following modules represent the crucial gaps waiting to be filled to transform **KisanSaathi** into a complete AgTech ecosystem.
+
+### Crop Farming – Things Still Missing
+
+1. 📄 **Crop Doctor Improvements**:
+   - Provide integration with the Gemini API to analyze crops, generate **clear, bold PDF reports**, and allow farmers to heavily download them.
+
+2. 🌐 **Multilingual Support**:
+   - Not currently equipped. Future releases will localize reports, advisories, and the UI into regional languages.
+
+3. 🏪 **Mandi Marketplace**:
+   - A platform for direct farmer-to-retailer/consumer deals without middlemen.
+   - *Roadmap*: Initially a standard basic version marketplace without blockchain, with plans to later integrate **Solidity Blockchain** for secure smart contracts and transparent ledgers.
+
+4. 🚜 **Equipment Renting Feature**:
+   - A peer-to-peer and business-to-peer rental module allowing farmers to lease tractors, harvesters, and specialized tools.
+
+5. 🤝 **BADLA (Farmer Connect)**:
+   - A hyper-local networking space where farmers connect with others nearby for labor, barter systems, or cash-based gigs.
+
+6. ⚖️ **Legal Survey Option**:
+   - Portal to request official land surveys, helping farmers resolve border disputes and handle documentation efficiently.
+
+7. 🏛 **Government Portal Linking**:
+   - A direct gateway where schemes, subsidies, and crop insurance policies are accessible directly inside the application.
+
+8. 📈 **AI CA (Agricultural Chartered Advisor)**:
+   - A scalable financial advisor designed for farmers. Dedicated to suggesting strategies for scaling, sustainability, and guiding farmers to the right government schemes.
+
+9. 🎙️ **Voice Agent "Sarpanch AI" Fine-Tuning**:
+   - Fine-tune the current conversational UX so farmers can interact naturally through voice in their own native language.
+
+---
+
+## 🤝 Contributing
+
+Contributions are always welcome! Ensure you adhere to the project's coding standards. The primary branch is `main`. Please ensure that your pull requests define clear context and reference any existing issues.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

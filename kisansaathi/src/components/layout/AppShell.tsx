@@ -16,22 +16,17 @@ export default function AppShell() {
   const showFab   = !NO_FAB_PATHS.some(p => pathname.startsWith(p))
 
   return (
-    <div className="flex flex-col min-h-screen bg-neutral-50">
-      {/* Top navigation */}
+    <div className="min-h-screen bg-neutral-50">
       <TopBar />
+      
+      {!isOnline && <div className="mt-14"><OfflineBanner /></div>}
 
-      {/* Offline warning */}
-      {!isOnline && <OfflineBanner />}
-
-      {/* Page content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 pb-32">
         <Outlet />
       </main>
 
-      {/* Ask AI FAB (all pages except chat) */}
       {showFab && <FAB />}
-
-      {/* Bottom navigation (mobile) */}
+      
       <BottomNav />
     </div>
   )

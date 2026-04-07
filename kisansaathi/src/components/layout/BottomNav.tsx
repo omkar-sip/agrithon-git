@@ -6,11 +6,11 @@ import { useCategoryStore } from '../../store/useCategoryStore'
 import clsx from 'clsx'
 
 const NAV_ITEMS = [
-  { label: 'Home',    icon: Home,       path: '/',            exact: true  },
+  { label: 'Home',    icon: Home,       path: '/',          exact: true  },
   { label: 'Market',  icon: TrendingUp,  path: '/crop/market', exact: false },
   { label: 'Weather', icon: CloudSun,    path: '/crop/weather',exact: false },
-  { label: 'Alerts',  icon: Bell,        path: '/settings',    exact: false },
-  { label: 'Profile', icon: User,        path: '/profile',     exact: false },
+  { label: 'Alerts',  icon: Bell,        path: '/crop/alerts', exact: false },
+  { label: 'Profile', icon: User,        path: '/settings',    exact: false },
 ]
 
 export default function BottomNav() {

@@ -65,14 +65,15 @@
   }
 
   .page-container {
-    @apply flex-1 px-4 py-4 pb-24 pt-[calc(56px+16px)];
+    @apply flex-1 px-4 py-4;
+    padding-top: calc(56px + env(safe-area-inset-top) + 16px);
     @apply max-w-lg mx-auto w-full;
   }
 
   /* Desktop layout expansion */
   @screen lg {
     .page-container {
-      @apply max-w-2xl pt-[calc(56px+24px)] px-8;
+      @apply max-w-2xl px-8;
     }
   }
 

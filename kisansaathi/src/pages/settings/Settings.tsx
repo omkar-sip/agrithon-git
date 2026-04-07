@@ -171,8 +171,8 @@ export default function Settings() {
         Sarpanch AI v1.0.0 · Built for Indian Farmers
       </p>
 
-      {/* ── Sign Out ──────────────────────────────────────────────── */}
-      {(isAuthenticated || authProvider) && (
+      {/* ── Sign In / Sign Out ────────────────────────────────────── */}
+      {isAuthenticated ? (
         <button
           id="sign-out-btn"
           onClick={handleSignOut}
@@ -180,6 +180,14 @@ export default function Settings() {
         >
           <LogOut size={16} />
           Sign Out
+        </button>
+      ) : (
+        <button
+          id="sign-in-btn"
+          onClick={() => navigate('/login')}
+          className="w-full flex items-center justify-center gap-2 text-forest-700 font-semibold border border-forest-200 bg-forest-50 hover:bg-forest-100 rounded-xl py-3.5 transition-colors"
+        >
+          Sign In / Create Account
         </button>
       )}
 

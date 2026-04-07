@@ -1,80 +1,88 @@
-// src/router/index.tsx
+// src/router/index.tsx — v2 with correct flow
+// Flow: /splash → /language → /category → /login → /profile (setup) → /
 import React, { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 
-// ─── Eager-loaded (critical path) ─────────────────────────────────────────
-import SplashScreen    from '../pages/splash/SplashScreen'
-import LanguageSelect  from '../pages/splash/LanguageSelect'
-import CategorySelect  from '../pages/splash/CategorySelect'
-import Login           from '../pages/auth/Login'
-import Home            from '../pages/home/Home'
+// ─── Eager-loaded (critical path) ─────────────────────────────────────────────
+import SplashScreen   from '../pages/splash/SplashScreen'
+import LanguageSelect from '../pages/splash/LanguageSelect'
+import CategorySelect from '../pages/splash/CategorySelect'
+import Login          from '../pages/auth/Login'
+import Home           from '../pages/home/Home'
 
-// ─── Lazy-loaded (separate chunks per category) ────────────────────────────
-const Profile        = lazy(() => import('../pages/auth/Profile'))
-const CropHome       = lazy(() => import('../pages/crop/CropHome'))
-const CropAdvisory   = lazy(() => import('../pages/crop/CropAdvisory'))
-const WeatherAlerts  = lazy(() => import('../pages/crop/WeatherAlerts'))
-const MarketPrices   = lazy(() => import('../pages/crop/MarketPrices'))
-const SoilHealth     = lazy(() => import('../pages/crop/SoilHealth'))
-const SchemesBenefits = lazy(() => import('../pages/crop/SchemesBenefits'))
-const CommunityIntel = lazy(() => import('../pages/crop/CommunityIntel'))
+// ─── Lazy-loaded ───────────────────────────────────────────────────────────────
+const Profile          = lazy(() => import('../pages/auth/Profile'))
+const Settings         = lazy(() => import('../pages/settings/Settings'))
+const CropHome         = lazy(() => import('../pages/crop/CropHome'))
+const CropAdvisory     = lazy(() => import('../pages/crop/CropAdvisory'))
+const WeatherAlerts    = lazy(() => import('../pages/crop/WeatherAlerts'))
+const MarketPrices     = lazy(() => import('../pages/crop/MarketPrices'))
+const SoilHealth       = lazy(() => import('../pages/crop/SoilHealth'))
+const SchemesBenefits  = lazy(() => import('../pages/crop/SchemesBenefits'))
+const CommunityIntel   = lazy(() => import('../pages/crop/CommunityIntel'))
 const HyperlocalAlerts = lazy(() => import('../pages/crop/HyperlocalAlerts'))
-const LivestockHome  = lazy(() => import('../pages/livestock/LivestockHome'))
-const PoultryHome    = lazy(() => import('../pages/poultry/PoultryHome'))
-const FisheryHome    = lazy(() => import('../pages/fishery/FisheryHome'))
-const Forum          = lazy(() => import('../pages/community/Forum'))
-const SarpanchGPT    = lazy(() => import('../pages/community/SarpanchGPT'))
-const Settings       = lazy(() => import('../pages/settings/Settings'))
+const LivestockHome    = lazy(() => import('../pages/livestock/LivestockHome'))
+const PoultryHome      = lazy(() => import('../pages/poultry/PoultryHome'))
+const FisheryHome      = lazy(() => import('../pages/fishery/FisheryHome'))
+const Forum            = lazy(() => import('../pages/community/Forum'))
+const SarpanchGPT      = lazy(() => import('../pages/community/SarpanchGPT'))
 
-// ─── Loading fallback ──────────────────────────────────────────────────────
+// ─── Loading fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-cream">
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-12 h-12 border-4 border-forest-200 border-t-forest-500 rounded-full animate-spin" />
-      <p className="font-body text-forest-600 text-base">Loading...</p>
+  <div className="flex items-center justify-center min-h-screen bg-neutral-50">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 border-[3px] border-neutral-200 border-t-forest-900 rounded-full animate-spin" />
+      <p className="text-neutral-500 text-sm">Loading...</p>
     </div>
   </div>
 )
 
-const router = createBrowserRouter([
-  // ─── Onboarding (no shell) ──────────────────────────────────────────────
-  { path: '/splash',    element: <SplashScreen /> },
-  { path: '/language',  element: <LanguageSelect /> },
-  { path: '/category',  element: <CategorySelect /> },
-  { path: '/login',     element: <Login /> },
-  { path: '/profile',   element: <Suspense fallback={<PageLoader />}><Profile /></Suspense> },
+const S = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<PageLoader />}>{children}</Suspense>
+)
 
-  // ─── Main app (with AppShell) ───────────────────────────────────────────
+const router = createBrowserRouter([
+  // ── Standalone routes (no shell) ─────────────────────────────────────────────
+  { path: '/splash',       element: <SplashScreen /> },
+  { path: '/language',     element: <LanguageSelect /> },
+  { path: '/category',     element: <CategorySelect /> },
+  { path: '/login',        element: <Login /> },
+  { path: '/profile',      element: <S><Profile /></S> },
+  { path: '/sarpanchgpt',  element: <S><SarpanchGPT /></S> },
+
+  // ── Main app (with AppShell shell: TopBar + BottomNav) ───────────────────────
   {
     path: '/',
     element: <AppShell />,
     children: [
-      { index: true,          element: <Home /> },
-      // Crop
-      { path: 'crop',         element: <Suspense fallback={<PageLoader />}><CropHome /></Suspense> },
-      { path: 'crop/advisory', element: <Suspense fallback={<PageLoader />}><CropAdvisory /></Suspense> },
-      { path: 'crop/weather', element: <Suspense fallback={<PageLoader />}><WeatherAlerts /></Suspense> },
-      { path: 'crop/market',  element: <Suspense fallback={<PageLoader />}><MarketPrices /></Suspense> },
-      { path: 'crop/soil',    element: <Suspense fallback={<PageLoader />}><SoilHealth /></Suspense> },
-      { path: 'crop/schemes', element: <Suspense fallback={<PageLoader />}><SchemesBenefits /></Suspense> },
-      { path: 'crop/community', element: <Suspense fallback={<PageLoader />}><CommunityIntel /></Suspense> },
-      { path: 'crop/alerts',  element: <Suspense fallback={<PageLoader />}><HyperlocalAlerts /></Suspense> },
-      // Livestock
-      { path: 'livestock',    element: <Suspense fallback={<PageLoader />}><LivestockHome /></Suspense> },
-      // Poultry
-      { path: 'poultry',      element: <Suspense fallback={<PageLoader />}><PoultryHome /></Suspense> },
-      // Fishery
-      { path: 'fishery',      element: <Suspense fallback={<PageLoader />}><FisheryHome /></Suspense> },
+      { index: true, element: <Home /> },
+
+      // Settings/My Profile (inside app shell with nav)
+      // BottomNav "Profile" tab goes here
+      { path: 'settings', element: <S><Settings /></S> },
+
+      // Crop farming
+      { path: 'crop',           element: <S><CropHome /></S> },
+      { path: 'crop/advisory',  element: <S><CropAdvisory /></S> },
+      { path: 'crop/weather',   element: <S><WeatherAlerts /></S> },
+      { path: 'crop/market',    element: <S><MarketPrices /></S> },
+      { path: 'crop/soil',      element: <S><SoilHealth /></S> },
+      { path: 'crop/schemes',   element: <S><SchemesBenefits /></S> },
+      { path: 'crop/community', element: <S><CommunityIntel /></S> },
+      { path: 'crop/alerts',    element: <S><HyperlocalAlerts /></S> },
+
+      // Livestock / Poultry / Fishery
+      { path: 'livestock', element: <S><LivestockHome /></S> },
+      { path: 'poultry',   element: <S><PoultryHome /></S> },
+      { path: 'fishery',   element: <S><FisheryHome /></S> },
+
       // Community
-      { path: 'forum',        element: <Suspense fallback={<PageLoader />}><Forum /></Suspense> },
-      { path: 'sarpanchgpt',  element: <Suspense fallback={<PageLoader />}><SarpanchGPT /></Suspense> },
-      // Settings
-      { path: 'settings',     element: <Suspense fallback={<PageLoader />}><Settings /></Suspense> },
-    ]
+      { path: 'forum',       element: <S><Forum /></S> },
+    ],
   },
 
-  // ─── Catch-all ──────────────────────────────────────────────────────────
+  // Catch-all
   { path: '*', element: <Navigate to="/splash" replace /> },
 ])
 

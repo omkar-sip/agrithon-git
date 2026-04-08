@@ -1,20 +1,154 @@
-// src/services/marketService.ts — Agmarknet / mandi price stub
 import type { MarketPrice } from '../store/useMarketStore'
+import { apiAvailability, env } from '../config/env'
+import { apiClient } from './api'
 
-// Mock mandi prices until Agmarknet API key is configured
+type AgmarknetRecord = Record<string, string | number | null | undefined>
+
+type AgmarknetResponse = {
+  records?: AgmarknetRecord[]
+}
+
+type NormalizedMandiRecord = {
+  commodity: string
+  mandi: string
+  state: string
+  pricePerQuintal: number
+  updatedAt: string
+}
+
+const readField = (record: AgmarknetRecord, keys: string[]): string => {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  }
+  return ''
+}
+
+const parseNumeric = (value: string): number => {
+  const parsed = Number(value.replace(/,/g, ''))
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const parseDateIso = (value: string): string => {
+  if (!value) return new Date().toISOString()
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString()
+  return parsed.toISOString()
+}
+
+const normalizeRecord = (record: AgmarknetRecord): NormalizedMandiRecord | null => {
+  const commodity = readField(record, ['commodity', 'Commodity', 'crop_name', 'Crop'])
+  const mandi = readField(record, ['market', 'mandi', 'market_name', 'Market'])
+  const state = readField(record, ['state', 'State', 'state_name']) || 'Unknown'
+  const price = parseNumeric(
+    readField(record, ['modal_price', 'Modal_Price', 'modalPrice', 'price', 'Price'])
+  )
+  const updatedAt = parseDateIso(
+    readField(record, ['arrival_date', 'Arrival_Date', 'date', 'updated_at', 'updatedAt'])
+  )
+
+  if (!commodity || !mandi || price <= 0) return null
+
+  return {
+    commodity,
+    mandi,
+    state,
+    pricePerQuintal: price,
+    updatedAt,
+  }
+}
+
+const getTrendFromPrices = (latest: number, previous?: number) => {
+  if (!previous || previous <= 0) {
+    return { trend: 'stable' as const, trendPercent: 0, color: 'yellow' as const }
+  }
+
+  const rawPercent = ((latest - previous) / previous) * 100
+  const trendPercent = Math.round(rawPercent * 10) / 10
+
+  if (trendPercent > 1) return { trend: 'up' as const, trendPercent, color: 'green' as const }
+  if (trendPercent < -1) return { trend: 'down' as const, trendPercent, color: 'red' as const }
+  return { trend: 'stable' as const, trendPercent, color: 'yellow' as const }
+}
+
+const buildPrices = (records: AgmarknetRecord[], mandiFilter?: string): MarketPrice[] => {
+  const normalized = records
+    .map(normalizeRecord)
+    .filter((entry): entry is NormalizedMandiRecord => Boolean(entry))
+    .filter(entry => {
+      if (!mandiFilter) return true
+      return entry.mandi.toLowerCase().includes(mandiFilter.toLowerCase())
+    })
+
+  const grouped = new Map<string, NormalizedMandiRecord[]>()
+
+  normalized.forEach(entry => {
+    const key = `${entry.commodity}__${entry.mandi}__${entry.state}`
+    const bucket = grouped.get(key) ?? []
+    bucket.push(entry)
+    grouped.set(key, bucket)
+  })
+
+  const prices = Array.from(grouped.values())
+    .map(group => group.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+    .map(group => {
+      const latest = group[0]
+      const previous = group[1]
+      const trendData = getTrendFromPrices(latest.pricePerQuintal, previous?.pricePerQuintal)
+
+      return {
+        id: `${latest.commodity}-${latest.mandi}-${latest.state}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-'),
+        commodity: latest.commodity,
+        mandi: latest.mandi,
+        state: latest.state,
+        pricePerQuintal: latest.pricePerQuintal,
+        trend: trendData.trend,
+        trendPercent: trendData.trendPercent,
+        updatedAt: latest.updatedAt,
+        color: trendData.color,
+      } satisfies MarketPrice
+    })
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+
+  return prices
+}
+
+export const hasLiveMarketApi = () => apiAvailability.hasAgmarknetKey
+
 export const getMockMarketPrices = (): MarketPrice[] => [
-  { id: '1', commodity: 'Tomato',    mandi: 'Nashik',     state: 'Maharashtra', pricePerQuintal: 1240, trend: 'up',     trendPercent: 8,  updatedAt: new Date().toISOString(), color: 'green' },
-  { id: '2', commodity: 'Onion',     mandi: 'Lasalgaon',  state: 'Maharashtra', pricePerQuintal: 890,  trend: 'down',   trendPercent: -5, updatedAt: new Date().toISOString(), color: 'red' },
-  { id: '3', commodity: 'Wheat',     mandi: 'Delhi',      state: 'Delhi',       pricePerQuintal: 2150, trend: 'stable', trendPercent: 0,  updatedAt: new Date().toISOString(), color: 'yellow' },
-  { id: '4', commodity: 'Potato',    mandi: 'Agra',       state: 'UP',          pricePerQuintal: 680,  trend: 'up',     trendPercent: 3,  updatedAt: new Date().toISOString(), color: 'green' },
-  { id: '5', commodity: 'Soybean',   mandi: 'Indore',     state: 'MP',          pricePerQuintal: 4200, trend: 'down',   trendPercent: -2, updatedAt: new Date().toISOString(), color: 'red' },
-  { id: '6', commodity: 'Cotton',    mandi: 'Nagpur',     state: 'Maharashtra', pricePerQuintal: 6800, trend: 'up',     trendPercent: 5,  updatedAt: new Date().toISOString(), color: 'green' },
-  { id: '7', commodity: 'Rice',      mandi: 'Kolkata',    state: 'West Bengal', pricePerQuintal: 1950, trend: 'stable', trendPercent: 0,  updatedAt: new Date().toISOString(), color: 'yellow' },
-  { id: '8', commodity: 'Maize',     mandi: 'Pune',       state: 'Maharashtra', pricePerQuintal: 1380, trend: 'up',     trendPercent: 4,  updatedAt: new Date().toISOString(), color: 'green' },
+  { id: '1', commodity: 'Tomato', mandi: 'Nashik', state: 'Maharashtra', pricePerQuintal: 1240, trend: 'up', trendPercent: 8, updatedAt: new Date().toISOString(), color: 'green' },
+  { id: '2', commodity: 'Onion', mandi: 'Lasalgaon', state: 'Maharashtra', pricePerQuintal: 890, trend: 'down', trendPercent: -5, updatedAt: new Date().toISOString(), color: 'red' },
+  { id: '3', commodity: 'Wheat', mandi: 'Delhi', state: 'Delhi', pricePerQuintal: 2150, trend: 'stable', trendPercent: 0, updatedAt: new Date().toISOString(), color: 'yellow' },
+  { id: '4', commodity: 'Potato', mandi: 'Agra', state: 'UP', pricePerQuintal: 680, trend: 'up', trendPercent: 3, updatedAt: new Date().toISOString(), color: 'green' },
+  { id: '5', commodity: 'Soybean', mandi: 'Indore', state: 'MP', pricePerQuintal: 4200, trend: 'down', trendPercent: -2, updatedAt: new Date().toISOString(), color: 'red' },
+  { id: '6', commodity: 'Cotton', mandi: 'Nagpur', state: 'Maharashtra', pricePerQuintal: 6800, trend: 'up', trendPercent: 5, updatedAt: new Date().toISOString(), color: 'green' },
+  { id: '7', commodity: 'Rice', mandi: 'Kolkata', state: 'West Bengal', pricePerQuintal: 1950, trend: 'stable', trendPercent: 0, updatedAt: new Date().toISOString(), color: 'yellow' },
+  { id: '8', commodity: 'Maize', mandi: 'Pune', state: 'Maharashtra', pricePerQuintal: 1380, trend: 'up', trendPercent: 4, updatedAt: new Date().toISOString(), color: 'green' },
 ]
 
-export const fetchMarketPrices = async (_mandi: string): Promise<MarketPrice[]> => {
-  // TODO: Integrate Agmarknet API
-  await new Promise(r => setTimeout(r, 500)) // Simulate network
-  return getMockMarketPrices()
+export const fetchMarketPrices = async (mandi?: string): Promise<MarketPrice[]> => {
+  if (!hasLiveMarketApi()) return getMockMarketPrices()
+
+  const endpoint = `${env.agmarknetBaseUrl.replace(/\/$/, '')}/${env.agmarknetResourceId}`
+
+  try {
+    const { data } = await apiClient.get<AgmarknetResponse>(endpoint, {
+      params: {
+        'api-key': env.agmarknetApiKey,
+        format: 'json',
+        limit: env.agmarknetLimit,
+        ...(mandi ? { 'filters[market]': mandi } : {}),
+      },
+    })
+
+    const prices = buildPrices(data.records ?? [], mandi)
+    return prices.length ? prices : getMockMarketPrices()
+  } catch (error) {
+    console.warn('[Market] Live Agmarknet fetch failed, using fallback data.', error)
+    return getMockMarketPrices()
+  }
 }
+

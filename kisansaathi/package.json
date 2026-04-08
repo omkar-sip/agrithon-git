@@ -1,0 +1,10 @@
+{
+  "name": "kisansaathi-subdir-runner",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix .. run dev --",
+    "build": "npm --prefix .. run build",
+    "lint": "npm --prefix .. run lint",
+    "preview": "npm --prefix .. run preview --"
+  }
+}

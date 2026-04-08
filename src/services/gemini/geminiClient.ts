@@ -1,8 +1,9 @@
 // src/services/gemini/geminiClient.ts
 // Gemini API client with feature-specific system prompts
 import { GoogleGenerativeAI, type GenerateContentResult, type Part } from '@google/generative-ai'
+import { env } from '../../config/env'
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
+const API_KEY = env.geminiApiKey
 
 let genAI: GoogleGenerativeAI | null = null
 
@@ -21,19 +22,290 @@ const LANG_NAMES: Record<string, string> = {
   pa: 'Punjabi (ਪੰਜਾਬੀ)',
 }
 
+interface GenerateOptions {
+  history?: Array<{ role: 'user' | 'model'; content: string }>
+  model?: string | string[]
+}
+
+const DEFAULT_TEXT_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro']
+const SARPANCH_CHAT_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro']
+const SARPANCH_TTS_MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts']
+
+const TEXT_MODEL_TIMEOUT_MS: Record<string, number> = {
+  'gemini-2.5-flash': 8000,
+  'gemini-2.5-pro': 9500,
+}
+
+const TTS_MODEL_TIMEOUT_MS: Record<string, number> = {
+  'gemini-2.5-flash-preview-tts': 1800,
+  'gemini-2.5-pro-preview-tts': 2600,
+}
+
+const FAST_GENERATION_CONFIG = {
+  maxOutputTokens: 420,
+  temperature: 0.45,
+  topP: 0.9,
+}
+
+const CONTINUATION_TIMEOUT_EXTRA_MS = 2200
+const CONTINUE_PROMPT =
+  'Continue from exactly where you stopped. Do not restart, do not repeat, and keep the same language and tone.'
+
+type ChatTurn = { role: 'user' | 'model'; parts: Array<{ text: string }> }
+
+interface CandidatePart {
+  text?: string
+}
+
+interface CandidateContent {
+  parts?: CandidatePart[]
+}
+
+interface ResponseCandidate {
+  finishReason?: string
+  content?: CandidateContent
+}
+
+interface GeminiResponseLike {
+  text?: () => string
+  candidates?: ResponseCandidate[]
+}
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null
+
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+  })
+
+  try {
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const normalizeHistory = (
+  history?: Array<{ role: 'user' | 'model'; content: string }>
+): ChatTurn[] => {
+  if (!history?.length) return []
+
+  const normalized: ChatTurn[] = []
+
+  for (const turn of history) {
+    const text = turn.content?.trim()
+    if (!text) continue
+
+    const role: 'user' | 'model' = turn.role === 'model' ? 'model' : 'user'
+
+    // Gemini chat history is most stable when it starts with user content.
+    if (!normalized.length && role === 'model') {
+      continue
+    }
+
+    const previous = normalized[normalized.length - 1]
+    if (previous && previous.role === role) {
+      previous.parts[0].text += `\n${text}`
+      continue
+    }
+
+    normalized.push({ role, parts: [{ text }] })
+  }
+
+  return normalized
+}
+
+const extractResponseText = (result: GenerateContentResult): string => {
+  const response = result.response as GeminiResponseLike
+  const fromTextFn = typeof response.text === 'function' ? response.text().trim() : ''
+  if (fromTextFn) return fromTextFn
+
+  const fromParts = (response.candidates || [])
+    .flatMap(candidate => candidate.content?.parts || [])
+    .map(part => part.text?.trim() || '')
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+
+  return fromParts
+}
+
+const getFinishReason = (result: GenerateContentResult): string => {
+  const response = result.response as GeminiResponseLike
+  return response.candidates?.[0]?.finishReason || 'UNKNOWN'
+}
+
+const isLikelyTruncated = (finishReason: string): boolean => finishReason.toUpperCase() === 'MAX_TOKENS'
+
+const mergeContinuation = (baseText: string, continuationText: string): string => {
+  const base = baseText.trim()
+  const continuation = continuationText.trim()
+
+  if (!base) return continuation
+  if (!continuation) return base
+  if (base.endsWith(continuation)) return base
+  if (continuation.startsWith(base)) return continuation
+
+  const maxOverlap = Math.min(120, base.length, continuation.length)
+  for (let overlap = maxOverlap; overlap >= 16; overlap--) {
+    const baseTail = base.slice(-overlap).toLowerCase()
+    const continuationHead = continuation.slice(0, overlap).toLowerCase()
+    if (baseTail === continuationHead) {
+      return `${base}${continuation.slice(overlap)}`.trim()
+    }
+  }
+
+  return `${base} ${continuation}`.replace(/\s+/g, ' ').trim()
+}
+
+const getSarpanchChatFallback = (language: string): string => {
+  const fallbacks: Record<string, string> = {
+    hi: 'Abhi network thoda slow hai. Aapka sawaal mil gaya hai. Kripya 10 second baad dubara puchhiye ya typing se bhejiye.',
+    en: 'The network is slow right now. I received your question. Please ask again in 10 seconds or use typing.',
+    kn: 'Iga network swalpa nidhanavide. Nimma prashne sikide. 10 second nantara matte keli athava typing madi.',
+    bn: 'Ekhon network dhire kaj korche. Apnar proshno peyechi. 10 second pore abar bolun ba type korun.',
+    ta: 'Ippothu network konjam slow. Ungal kelvi vandhulladhu. 10 vinadi pinbu thirumba kelunga allathu type pannunga.',
+    pa: 'Hun network thoda slow hai. Tuhada sawal mil gaya hai. 10 second baad dubara pucho ya type karo.',
+  }
+
+  const message = fallbacks[language] || fallbacks.en
+  return `${message}\nToday's Farm Action: Check mobile signal and ask one short question again.`
+}
+
 // ─── Core generator ────────────────────────────────────────────────────────
-async function generate(systemPrompt: string, userMessage: string): Promise<string> {
+async function generate(
+  systemPrompt: string,
+  userMessage: string,
+  options: GenerateOptions = {}
+): Promise<string> {
   const client = getClient()
   if (!client) {
     console.warn('[Gemini] No API key configured — returning mock response')
     return getMockResponse(userMessage)
   }
-  const model = client.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    systemInstruction: systemPrompt,
-  })
-  const result: GenerateContentResult = await model.generateContent(userMessage)
-  return result.response.text()
+
+  const candidateModels = Array.isArray(options.model)
+    ? options.model
+    : options.model
+      ? [options.model]
+      : DEFAULT_TEXT_MODELS
+
+  const uniqueCandidateModels = Array.from(new Set(candidateModels.filter(Boolean)))
+  const normalizedHistory = normalizeHistory(options.history)
+  let lastError: unknown = null
+
+  for (const modelName of uniqueCandidateModels) {
+    try {
+      const model = client.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemPrompt,
+        generationConfig: FAST_GENERATION_CONFIG,
+      })
+      const timeoutMs = TEXT_MODEL_TIMEOUT_MS[modelName] ?? 8000
+
+      if (normalizedHistory.length) {
+        const chat = model.startChat({ history: normalizedHistory })
+        let result = await withTimeout(chat.sendMessage(userMessage), timeoutMs, modelName)
+        let text = extractResponseText(result)
+        let finishReason = getFinishReason(result)
+
+        if (!text) {
+          result = await withTimeout(
+            chat.sendMessage('Reply in plain text only and give a complete answer.'),
+            timeoutMs,
+            `${modelName} retry`
+          )
+          text = extractResponseText(result)
+          finishReason = getFinishReason(result)
+        }
+
+        if (text && isLikelyTruncated(finishReason)) {
+          const continuationResult = await withTimeout(
+            chat.sendMessage(CONTINUE_PROMPT),
+            timeoutMs + CONTINUATION_TIMEOUT_EXTRA_MS,
+            `${modelName} continuation`
+          )
+          const continuationText = extractResponseText(continuationResult)
+          if (continuationText) {
+            text = mergeContinuation(text, continuationText)
+          }
+        }
+
+        if (!text) {
+          throw new Error(`Gemini returned an empty response (finishReason: ${finishReason}).`)
+        }
+
+        return text
+      }
+
+      let result: GenerateContentResult = await withTimeout(
+        model.generateContent(userMessage),
+        timeoutMs,
+        modelName
+      )
+      let text = extractResponseText(result)
+      let finishReason = getFinishReason(result)
+
+      if (!text) {
+        result = await withTimeout(
+          model.generateContent(`${userMessage}\n\nReply in plain text only and give a complete answer.`),
+          timeoutMs,
+          `${modelName} retry`
+        )
+        text = extractResponseText(result)
+        finishReason = getFinishReason(result)
+      }
+
+      if (text && isLikelyTruncated(finishReason)) {
+        const continuationResult = await withTimeout(
+          model.generateContent(
+            `Continue this answer from where it stopped. Do not repeat previous content.
+
+Question:
+${userMessage}
+
+Answer so far:
+${text}`
+          ),
+          timeoutMs + CONTINUATION_TIMEOUT_EXTRA_MS,
+          `${modelName} continuation`
+        )
+        const continuationText = extractResponseText(continuationResult)
+        if (continuationText) {
+          text = mergeContinuation(text, continuationText)
+        }
+      }
+
+      if (!text) {
+        throw new Error(`Gemini returned an empty response (finishReason: ${finishReason}).`)
+      }
+
+      return text
+    } catch (error) {
+      lastError = error
+      console.warn(`[Gemini] ${modelName} failed`, error)
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Gemini request failed for all configured text models.')
 }
 
 // ─── Mock fallback (dev without API key) ────────────────────────────────────
@@ -99,7 +371,7 @@ Symptoms: ${params.symptomsDescription}`
   }
 
   const model = client.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     systemInstruction: system,
   })
 
@@ -275,15 +547,148 @@ export async function chatWithSarpanch(params: {
   history?: Array<{ role: 'user' | 'model'; content: string }>
 }): Promise<string> {
   const lang = LANG_NAMES[params.language] || 'Hindi'
-  const system = `You are SarpanchAI — a knowledgeable village agricultural advisor who speaks like a trusted, wise elder who also understands modern farming technology.
-You help Indian smallholder farmers with ANY farming question: crops, livestock, poultry, fishery, government schemes, market, weather, soil, pests.
-Tone: Warm, direct, practical. Like talking to a trusted elder, not a chatbot. Use "aap" respectfully.
-Language: ${lang}
-Farmer context: ${params.farmerContext}
-ALWAYS end with:
-✅ आज का काम: [one clear action the farmer should take today]`
+  const system = `You are Sarpanch Ji, a trusted agriculture advisor for Indian farmers.
+Goals:
+- Give practical, local, low-literacy-friendly farming guidance.
+- Keep replies concise, clear, and actionable.
+- Prioritize farmer safety, crop health, livestock welfare, and cost-aware decisions.
 
-  return generate(system, params.question)
+Multilingual NLP mode:
+- Detect the farmer's latest language and script from their message.
+- Understand mixed language input (for example Hindi+English, Punjabi+English) and Romanized Indian language input.
+- Reply in the same language style the farmer just used. If unclear, reply in ${lang}.
+
+Conversation style:
+- Respectful and warm, like an experienced village mentor.
+- Use short sentences and numbered steps when giving actions.
+- If location/season matters and data is missing, ask one short clarifying question.
+
+Farmer context:
+${params.farmerContext}
+
+Response format rules:
+- First line: a direct answer in 1 sentence.
+- Then practical steps.
+- Default brevity: keep it under 90 words unless the farmer asks for detailed explanation.
+- Use plain text only. Do not use markdown symbols like *, **, #, -, backticks, or code blocks.
+- End with exactly one line:
+Today's Farm Action: <one clear action for the next 24 hours>`
+
+  try {
+    return await generate(system, params.question, {
+      history: params.history,
+      model: SARPANCH_CHAT_MODELS,
+    })
+  } catch (error) {
+    console.warn('[Sarpanch Chat] Falling back after Gemini failure', error)
+    return getSarpanchChatFallback(params.language)
+  }
+}
+
+export interface SarpanchSpeechAudio {
+  audioBase64: string
+  mimeType: string
+  sampleRateHz: number
+  voiceName: string
+}
+
+const SARPANCH_VOICE_BY_LANG: Record<string, string> = {
+  en: 'Kore',
+  hi: 'Kore',
+  kn: 'Kore',
+  bn: 'Kore',
+  ta: 'Kore',
+  pa: 'Kore',
+}
+
+const parseSampleRate = (mimeType: string): number => {
+  const match = mimeType.match(/rate=(\d+)/i)
+  if (!match) return 24000
+  const parsed = Number(match[1])
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24000
+}
+
+export async function synthesizeSarpanchSpeech(params: {
+  text: string
+  language: string
+}): Promise<SarpanchSpeechAudio | null> {
+  const trimmed = params.text.trim()
+  if (!trimmed) return null
+  if (!API_KEY) return null
+
+  const voiceName = SARPANCH_VOICE_BY_LANG[params.language] || 'Kore'
+  const ttsPrompt = `Read this advisory message exactly as written for an Indian farmer.
+Tone: calm, respectful, reassuring, and clear.
+Pace: medium-slow with brief pauses at punctuation.
+
+${trimmed}`
+
+  for (const modelName of SARPANCH_TTS_MODELS) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
+    const timeoutMs = TTS_MODEL_TIMEOUT_MS[modelName] ?? 2600
+
+    try {
+      const response = await fetchWithTimeout(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': API_KEY,
+          },
+          body: JSON.stringify({
+            model: modelName,
+            contents: [{ parts: [{ text: ttsPrompt }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName },
+                },
+              },
+            },
+          }),
+        },
+        timeoutMs
+      )
+
+      if (!response.ok) {
+        console.warn(`[Gemini TTS] ${modelName} HTTP ${response.status}`)
+        continue
+      }
+
+      const payload = (await response.json()) as {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{
+              inlineData?: {
+                data?: string
+                mimeType?: string
+              }
+            }>
+          }
+        }>
+      }
+
+      const audioPart = payload.candidates?.[0]?.content?.parts?.find(
+        part => typeof part.inlineData?.data === 'string'
+      )
+      const audioBase64 = audioPart?.inlineData?.data
+      if (!audioBase64) continue
+
+      const mimeType = audioPart.inlineData?.mimeType || 'audio/L16;rate=24000'
+      return {
+        audioBase64,
+        mimeType,
+        sampleRateHz: parseSampleRate(mimeType),
+        voiceName,
+      }
+    } catch (error) {
+      console.warn(`[Gemini TTS] ${modelName} request failed`, error)
+    }
+  }
+
+  return null
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -373,7 +778,7 @@ The leaves show characteristic brown spots with yellow halos, indicating early-s
   }
 
   const model = client.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     systemInstruction: system,
   })
 

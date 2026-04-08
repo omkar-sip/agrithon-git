@@ -1,8 +1,9 @@
 import { addDays, format } from 'date-fns'
 import { apiClient } from './api'
 import type { ForecastDay, WeatherData } from '../store/useWeatherStore'
+import { env } from '../config/env'
 
-const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || ''
+const API_KEY = env.openWeatherApiKey
 const WEATHER_BASE = 'https://api.openweathermap.org/data/2.5'
 const GEO_BASE = 'https://api.openweathermap.org/geo/1.0'
 

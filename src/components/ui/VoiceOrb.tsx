@@ -17,18 +17,18 @@ const SIZE = {
 }
 
 const STATE_COLOR: Record<VoiceAgentState, string> = {
-  idle:       'bg-forest-900 hover:bg-forest-700',
-  listening:  'bg-danger-500',
-  processing: 'bg-gold-500',
-  speaking:   'bg-info-500',
-  error:      'bg-neutral-400',
+  idle:       'bg-brand-600 hover:bg-brand-500',
+  listening:  'bg-brand-700',
+  processing: 'bg-brand-500',
+  speaking:   'bg-brand-400',
+  error:      'bg-brand-300',
 }
 
 const STATE_LABEL: Record<VoiceAgentState, string> = {
   idle:       'Tap to speak',
-  listening:  'Listening...',
-  processing: 'Thinking...',
-  speaking:   'Speaking...',
+  listening:  'Listening - tap to stop',
+  processing: 'Thinking - tap to stop',
+  speaking:   'Speaking - tap to stop',
   error:      'Try again',
 }
 
@@ -66,14 +66,14 @@ export default function VoiceOrb({ state, onPress, size = 'md', className = '' }
           {isListening && (
             <>
               <motion.div
-                className="absolute inset-0 rounded-full bg-danger-400"
+                className="absolute inset-0 rounded-full bg-brand-300"
                 initial={{ scale: 1, opacity: 0.6 }}
                 animate={{ scale: 1.8, opacity: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 1.2, repeat: Infinity, ease: 'easeOut' }}
               />
               <motion.div
-                className="absolute inset-0 rounded-full bg-danger-400"
+                className="absolute inset-0 rounded-full bg-brand-300"
                 initial={{ scale: 1, opacity: 0.4 }}
                 animate={{ scale: 2.4, opacity: 0 }}
                 exit={{ opacity: 0 }}
@@ -93,7 +93,7 @@ export default function VoiceOrb({ state, onPress, size = 'md', className = '' }
             flex items-center justify-center
             ${STATE_COLOR[state]}
             shadow-fab transition-colors duration-300
-            focus:outline-none focus:ring-2 focus:ring-white/40
+            focus:outline-none focus:ring-2 focus:ring-brand-200
           `}
           aria-label={STATE_LABEL[state]}
         >

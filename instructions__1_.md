@@ -1,11 +1,11 @@
-# 🌾 KisanSaathi — Complete PWA Scaffold Instructions
+# 🌾 Sarpanch AI — Complete PWA Scaffold Instructions
 ### One App. Every Farmer. Every Problem.
 
 ---
 
 ## 🧭 Project Overview
 
-**App Name:** KisanSaathi ("Farmer's Companion")  
+**App Name:** Sarpanch AI ("Farmer's Companion and the one who takes stand for Farmers")  
 **Stack:** React 18 + TypeScript + Vite + Zustand + TailwindCSS + PWA (Vite PWA Plugin)  
 **Target Users:** Indian smallholder farmers across 4 primary farming categories  
 **Design Philosophy:** *Soil-rooted Digital* — warm earthy tones, icon-first UI, minimum reading, maximum action. Every screen must work for a semi-literate farmer using a budget Android phone in bright sunlight.
@@ -15,7 +15,7 @@
 ## 🏗️ Project Scaffold & File Structure
 
 ```
-kisansaathi/
+sarpanch-ai
 ├── public/
 │   ├── icons/                        # PWA icons (72, 96, 128, 144, 152, 192, 384, 512px)
 │   ├── manifest.webmanifest

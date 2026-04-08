@@ -5,6 +5,7 @@ import Router from './router'
 import { useAppStore } from './store/useAppStore'
 import { useAuthStore } from './store/useAuthStore'
 import { useWeatherStore } from './store/useWeatherStore'
+import { initFCM } from './services/notificationService'
 
 export default function App() {
   const { setOnline } = useAppStore()
@@ -25,6 +26,12 @@ export default function App() {
     if (!isAuthenticated || !farmer?.coords) return
     void fetchAndSetWeather(farmer.coords.lat, farmer.coords.lon)
   }, [farmer?.coords, fetchAndSetWeather, isAuthenticated])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+    void initFCM()
+  }, [])
 
   return (
     <>

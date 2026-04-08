@@ -1,10 +1,9 @@
-// src/pages/community/SarpanchGPT.tsx — with full voice agent integration
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, ChevronLeft, Keyboard, MicOff } from 'lucide-react'
+import { Send, ChevronLeft, Keyboard, MicOff, Languages, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { chatWithSarpanch } from '../../services/gemini/geminiClient'
-import { useLanguageStore } from '../../store/useLanguageStore'
+import { useLanguageStore, LANGUAGE_META, type SupportedLanguage } from '../../store/useLanguageStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useVoiceAgent } from '../../hooks/useVoiceAgent'
 import VoiceOrb from '../../components/ui/VoiceOrb'
@@ -15,162 +14,353 @@ interface Message {
   timestamp: Date
 }
 
-const QUICK_QUESTIONS = [
-  'How do I remove aphids from wheat?',
-  'When does PM-KISAN payment come?',
-  'Crops to sow in June in Maharashtra?',
-  'Signs of low soil nitrogen?',
-]
+const HISTORY_WINDOW = 6
+const HISTORY_CHAR_LIMIT = 220
+const RESPONSE_CACHE_TTL_MS = 4 * 60 * 1000
+const RESPONSE_CACHE_MAX_ITEMS = 40
+
+const QUICK_QUESTIONS: Record<SupportedLanguage, string[]> = {
+  en: [
+    'What should I do for yellow leaves in wheat?',
+    'Will rain in next 3 days affect spraying?',
+    'Best mandi nearby to sell maize this week?',
+    'Any scheme for drip irrigation subsidy?',
+  ],
+  hi: [
+    'gehu me peele patte ka turant upay?',
+    'agle 3 din ki barish me spray kare ya nahi?',
+    'is hafte makka bechne ke liye best mandi?',
+    'drip sinchai subsidy ke liye kaunsi yojana hai?',
+  ],
+  kn: [
+    'wheat nalli yellow agidre takshana enu madodu?',
+    'mundina 3 dina male idre spray madbekaa?',
+    'ee vara maize yelli marata madodu better?',
+    'drip irrigation subsidy ge yava yojane ide?',
+  ],
+  bn: [
+    'gom e holud pata hole ekhon ki korbo?',
+    'agami 3 diner brishtite spray kora thik hobe?',
+    'ei soptaho bhutta bikrir jonno bhalo mandi konta?',
+    'drip irrigation subsidy pabar upay ki?',
+  ],
+  ta: [
+    'wheat il manjal ilai varumbodhu enna seiyanum?',
+    'adutha 3 naal mazhai irundha spray seiyalama?',
+    'indha vaaram maize vikkanum na best mandi edhu?',
+    'drip irrigation subsidy kidaikka enna seiyanum?',
+  ],
+  pa: [
+    'gehu de peele patte da turant ilaaj ki hai?',
+    'agle 3 din me barish hoye ta spray kariye?',
+    'is hafte makki bechan layi vadiya mandi kehri?',
+    'drip irrigation subsidy layi kehri scheme hai?',
+  ],
+}
+
+const TIME_LOCALE: Record<SupportedLanguage, string> = {
+  en: 'en-IN',
+  hi: 'hi-IN',
+  kn: 'kn-IN',
+  bn: 'bn-IN',
+  ta: 'ta-IN',
+  pa: 'pa-IN',
+}
+
+const compactHistoryContent = (text: string): string => {
+  const compact = text.replace(/\s+/g, ' ').trim()
+  if (!compact) return ''
+  return compact.length > HISTORY_CHAR_LIMIT ? `${compact.slice(0, HISTORY_CHAR_LIMIT)}...` : compact
+}
+
+const toHistory = (messages: Message[]) =>
+  messages
+    .filter(
+      (message, index) =>
+        !(
+          index === 0 &&
+          message.role === 'model' &&
+          message.content.includes('I am Sarpanch Ji, your voice-first farm advisor')
+        )
+    )
+    .slice(-HISTORY_WINDOW)
+    .map(message => ({
+      role: message.role,
+      content: compactHistoryContent(message.content),
+    }))
+    .filter(message => Boolean(message.content))
+
+const getErrorMessage = (error: unknown): string => {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : 'Unknown error'
+
+  const cleaned = raw.replace(/\s+/g, ' ').trim()
+  if (!cleaned) return 'Unknown error'
+  return cleaned.length > 160 ? `${cleaned.slice(0, 157)}...` : cleaned
+}
 
 export default function SarpanchGPT() {
   const navigate = useNavigate()
   const { language } = useLanguageStore()
-  const farmer = useAuthStore(s => s.farmer)
+  const farmer = useAuthStore(state => state.farmer)
+
+  const firstName = farmer?.name?.split(' ')?.[0] || ''
 
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'model',
-      content: `Hello${farmer?.name ? ', ' + farmer.name.split(' ')[0] : ''}! I'm Sarpanch AI — your personal farming advisor.\n\nAsk me anything about crops, weather, market prices, or government schemes. You can also tap the mic button and speak your question.`,
+      content: `Namaste${firstName ? `, ${firstName}` : ''}. I am Sarpanch Ji, your voice-first farm advisor.
+
+You can ask in your own language, including mixed local + English words.
+I will answer clearly and end every reply with one practical action for today.`,
       timestamp: new Date(),
-    }
+    },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'text' | 'voice'>('voice')
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+
+  const messagesRef = useRef(messages)
+  const transcriptRef = useRef('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const responseCacheRef = useRef<Map<string, { value: string; expiresAt: number }>>(new Map())
+
+  const quickQuestions = useMemo(
+    () => QUICK_QUESTIONS[language as SupportedLanguage] || QUICK_QUESTIONS.en,
+    [language]
+  )
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // ── AI function ────────────────────────────────────────────────────
-  const askAI = useCallback(async (question: string): Promise<string> => {
-    const ctx = farmer
-      ? `Farmer profile: Name=${farmer.name}, Location=${farmer.district || 'India'}, ${farmer.state || ''}, Category=${farmer.category}, Land=${farmer.landHolding} acres, Water=${farmer.waterSource}.`
-      : 'Anonymous farmer from India'
-    return chatWithSarpanch({ question, farmerContext: ctx, language })
-  }, [farmer, language])
+  const askAI = useCallback(
+    async (question: string, messageSnapshot?: Message[]): Promise<string> => {
+      const normalizedQuestion = question.replace(/\s+/g, ' ').trim()
+      if (!normalizedQuestion) return ''
 
-  // ── Voice agent ────────────────────────────────────────────────────
-  const voiceAgent = useVoiceAgent(askAI, {
-    onTranscript: (text) => setInput(text),
-    onResponse: (text) => {
-      setMessages(m => [
-        ...m,
-        { role: 'model', content: text, timestamp: new Date() }
-      ])
-    },
-    onStateChange: (s) => {
-      // When voice picks up transcript → show as user message
-      if (s === 'processing' && voiceAgent.transcript) {
-        setMessages(m => [...m, { role: 'user', content: voiceAgent.transcript, timestamp: new Date() }])
-        setInput('')
+      const context = farmer
+        ? `Farmer profile: Name=${farmer.name}, District=${farmer.district || 'Unknown'}, State=${
+            farmer.state || 'Unknown'
+          }, Category=${farmer.category}, Land=${farmer.landHolding || 0} acres, Water=${
+            farmer.waterSource || 'Unknown'
+          }.`
+        : 'Farmer profile unavailable. Assume a smallholder farmer from India.'
+
+      const cacheKey = `${language}|${farmer?.district || 'unknown'}|${farmer?.state || 'unknown'}|${normalizedQuestion.toLowerCase()}`
+      const now = Date.now()
+      const cached = responseCacheRef.current.get(cacheKey)
+      if (cached && cached.expiresAt > now) {
+        return cached.value
       }
+      if (cached) responseCacheRef.current.delete(cacheKey)
+
+      const response = await chatWithSarpanch({
+        question: normalizedQuestion,
+        farmerContext: context,
+        language,
+        history: toHistory(messageSnapshot || messagesRef.current),
+      })
+
+      responseCacheRef.current.set(cacheKey, { value: response, expiresAt: now + RESPONSE_CACHE_TTL_MS })
+      if (responseCacheRef.current.size > RESPONSE_CACHE_MAX_ITEMS) {
+        const oldestKey = responseCacheRef.current.keys().next().value as string | undefined
+        if (oldestKey) responseCacheRef.current.delete(oldestKey)
+      }
+
+      return response
+    },
+    [farmer, language]
+  )
+
+  const voiceAgent = useVoiceAgent(
+    async (question: string) => askAI(question, messagesRef.current),
+    {
+      onTranscript: transcript => {
+        transcriptRef.current = transcript
+        setInput(transcript)
+        setVoiceError(null)
+      },
+      onResponse: text => {
+        setMessages(previous => [...previous, { role: 'model', content: text, timestamp: new Date() }])
+        transcriptRef.current = ''
+      },
+      onStateChange: nextState => {
+        if (nextState !== 'processing') return
+        const spokenQuestion = transcriptRef.current.trim()
+        if (!spokenQuestion) return
+
+        setMessages(previous => {
+          const lastMessage = previous[previous.length - 1]
+          if (lastMessage?.role === 'user' && lastMessage.content === spokenQuestion) {
+            return previous
+          }
+          return [...previous, { role: 'user', content: spokenQuestion, timestamp: new Date() }]
+        })
+        setInput('')
+      },
+      onError: message => setVoiceError(message),
     }
-  })
+  )
 
-  // ── Text send ──────────────────────────────────────────────────────
-  const handleSend = async (text?: string) => {
-    const q = (text || input).trim()
-    if (!q) return
-    setInput('')
-    setMessages(m => [...m, { role: 'user', content: q, timestamp: new Date() }])
-    setLoading(true)
-    try {
-      const resp = await askAI(q)
-      setMessages(m => [...m, { role: 'model', content: resp, timestamp: new Date() }])
-    } catch {
-      setMessages(m => [...m, { role: 'model', content: 'Sorry — connection issue. Please try again.', timestamp: new Date() }])
-    } finally { setLoading(false) }
-  }
+  const sendMessage = useCallback(
+    async (rawText?: string) => {
+      const question = (rawText || input).trim()
+      if (!question || loading) return
 
-  const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      const historySnapshot = messagesRef.current
+      setInput('')
+      setVoiceError(null)
+      setMessages(previous => [...previous, { role: 'user', content: question, timestamp: new Date() }])
+      setLoading(true)
+
+      try {
+        const response = await askAI(question, historySnapshot)
+        setMessages(previous => [...previous, { role: 'model', content: response, timestamp: new Date() }])
+        if (mode === 'voice') {
+          void voiceAgent.speak(response)
+        }
+      } catch (error) {
+        const reason = getErrorMessage(error)
+        const fallback = `Connection issue while talking to Sarpanch Ji: ${reason}`
+        setMessages(previous => [...previous, { role: 'model', content: fallback, timestamp: new Date() }])
+        setVoiceError(`Network issue detected: ${reason}`)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [askAI, input, loading, mode, voiceAgent]
+  )
+
+  const statusText = voiceAgent.isListening
+    ? 'Listening'
+    : voiceAgent.isProcessing
+      ? 'Thinking'
+      : voiceAgent.isSpeaking
+        ? 'Speaking'
+        : 'Online'
+
+  const statusColor = voiceAgent.isListening
+    ? 'bg-brand-300 animate-pulse'
+    : voiceAgent.isProcessing
+      ? 'bg-brand-400 animate-pulse'
+      : voiceAgent.isSpeaking
+        ? 'bg-brand-500 animate-pulse'
+        : 'bg-brand-300'
+  const isVoiceBusy = voiceAgent.isListening || voiceAgent.isProcessing || voiceAgent.isSpeaking
+
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString(TIME_LOCALE[language as SupportedLanguage] || 'en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] bg-neutral-50 overflow-hidden relative">
-
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="bg-forest-900 text-white flex-shrink-0"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="flex items-center gap-3 px-4 h-14 max-w-2xl mx-auto">
-          <button onClick={() => navigate(-1)}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+    <div className="flex flex-col h-screen h-[100dvh] bg-gradient-to-b from-brand-50 via-amber-50/40 to-neutral-100 overflow-hidden relative">
+      <div className="bg-brand-700 text-white flex-shrink-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center gap-3 px-4 h-14 max-w-3xl mx-auto">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+            aria-label="Back"
+          >
             <ChevronLeft size={20} />
           </button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="font-bold text-base leading-tight" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-              Sarpanch AI
+              Sarpanch Ji
             </p>
-            <div className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${voiceAgent.isListening ? 'bg-danger-400' :
-                  voiceAgent.isProcessing ? 'bg-gold-400 animate-pulse' :
-                    voiceAgent.isSpeaking ? 'bg-info-400 animate-pulse' :
-                      'bg-success-400'
-                }`} />
-              <p className="text-forest-300 text-xs">
-                {voiceAgent.isListening ? 'Listening...' :
-                  voiceAgent.isProcessing ? 'Thinking...' :
-                    voiceAgent.isSpeaking ? 'Speaking...' :
-                      'Online · AI Advisor'}
-              </p>
+            <div className="flex items-center gap-2">
+              <span className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
+              <p className="text-brand-100 text-xs">{statusText} - AI Farm Advisor</p>
             </div>
           </div>
-          {/* Mode toggle */}
           <button
-            onClick={() => { setMode(m => m === 'voice' ? 'text' : 'voice'); voiceAgent.stopAll() }}
+            onClick={() => {
+              setMode(current => (current === 'voice' ? 'text' : 'voice'))
+              voiceAgent.stopAll()
+            }}
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-            title={mode === 'voice' ? 'Switch to text mode' : 'Switch to voice mode'}
+            title={mode === 'voice' ? 'Switch to typing mode' : 'Switch to voice mode'}
+            aria-label={mode === 'voice' ? 'Switch to typing mode' : 'Switch to voice mode'}
           >
             {mode === 'voice' ? <Keyboard size={18} /> : <MicOff size={18} />}
           </button>
         </div>
       </div>
 
-      {/* ── Messages ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-4 no-scrollbar max-w-2xl mx-auto w-full">
+      <div className="w-full max-w-3xl mx-auto px-4 pt-3">
+        <div className="bg-white border border-brand-200 rounded-xl px-3 py-2 shadow-card flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-neutral-600 min-w-0">
+            <Languages size={14} className="text-brand-700 shrink-0" />
+            <span className="truncate">
+              Language: {LANGUAGE_META[language as SupportedLanguage]?.nativeName || 'Auto'}
+            </span>
+          </div>
+          <p className="text-[11px] text-neutral-500 truncate">
+            Ask by voice, type, or mixed local + English words
+          </p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
         <AnimatePresence initial={false}>
-          {messages.map((msg, i) => (
+          {messages.map((message, index) => (
             <motion.div
-              key={i}
+              key={`${message.timestamp.getTime()}-${index}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} gap-2`}
+              transition={{ duration: 0.22 }}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} gap-2`}
             >
-              {msg.role === 'model' && (
-                <div className="w-8 h-8 rounded-full bg-forest-900 flex items-center justify-center text-sm shrink-0 mt-1 select-none">
-                  🌾
+              {message.role === 'model' && (
+                <div className="w-8 h-8 rounded-full bg-brand-700 text-white flex items-center justify-center text-[11px] font-semibold shrink-0 mt-1">
+                  SJ
                 </div>
               )}
-              <div className="max-w-[82%]">
-                <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
-                    ? 'bg-forest-900 text-white rounded-br-sm'
-                    : 'bg-white text-neutral-800 border border-neutral-200 shadow-card rounded-bl-sm'
-                  }`}>
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+              <div className="max-w-[85%]">
+                <div
+                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    message.role === 'user'
+                      ? 'bg-brand-600 text-white rounded-br-sm'
+                      : 'bg-white text-neutral-800 border border-neutral-200 shadow-card rounded-bl-sm'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
-                <p className="text-[11px] text-neutral-400 mt-1 px-1">
-                  {formatTime(msg.timestamp)}
-                </p>
+                <p className="text-[11px] text-neutral-400 mt-1 px-1">{formatTime(message.timestamp)}</p>
               </div>
             </motion.div>
           ))}
 
-          {/* Typing indicator */}
           {(loading || voiceAgent.isProcessing) && (
-            <motion.div key="typing"
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              key="typing"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
               className="flex justify-start gap-2"
             >
-              <div className="w-8 h-8 rounded-full bg-forest-900 flex items-center justify-center text-sm select-none shrink-0 mt-1">🌾</div>
-              <div className="bg-white border border-neutral-200 shadow-card rounded-2xl rounded-bl-sm px-4 py-3">
+              <div className="w-8 h-8 rounded-full bg-brand-700 text-white flex items-center justify-center text-[11px] font-semibold shrink-0 mt-1">
+                SJ
+              </div>
+              <div className="bg-white border border-brand-100 shadow-card rounded-2xl rounded-bl-sm px-4 py-3">
                 <div className="flex gap-1 items-center h-5">
-                  {[0, 1, 2].map(i => (
-                    <motion.div key={i}
+                  {[0, 1, 2].map(dot => (
+                    <motion.div
+                      key={dot}
                       className="w-2 h-2 bg-neutral-300 rounded-full"
                       animate={{ opacity: [0.4, 1, 0.4], y: [0, -3, 0] }}
-                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.18 }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: dot * 0.18 }}
                     />
                   ))}
                 </div>
@@ -181,61 +371,93 @@ export default function SarpanchGPT() {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Voice mode ───────────────────────────────────────────── */}
       {mode === 'voice' && (
-        <div className="flex-shrink-0 bg-white border-t border-neutral-200 pb-safe-bottom"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
-
-          {/* Quick questions (shown when idle) */}
-          {voiceAgent.state === 'idle' && messages.length <= 1 && (
+        <div
+          className="flex-shrink-0 bg-white/95 backdrop-blur border-t border-neutral-200"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 14px)' }}
+        >
+          {messages.length <= 1 && (
             <div className="px-4 pt-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
-              {QUICK_QUESTIONS.map(q => (
-                <button key={q} onClick={() => handleSend(q)}
-                  className="bg-neutral-100 text-neutral-700 border border-neutral-200 rounded-full px-3 py-2 text-xs font-medium shrink-0 hover:bg-neutral-200 transition-colors">
-                  {q}
+              {quickQuestions.map(question => (
+                <button
+                  key={question}
+                  onClick={() => {
+                    void sendMessage(question)
+                  }}
+                  className="bg-brand-50 text-brand-700 border border-brand-200 rounded-full px-3 py-2 text-xs font-medium shrink-0 hover:bg-brand-100 transition-colors"
+                >
+                  {question}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Transcript preview */}
           {voiceAgent.transcript && (
-            <div className="mx-4 mt-3 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-sm text-neutral-600 italic">
+            <div className="mx-4 mt-3 bg-brand-50 border border-brand-200 rounded-xl px-3 py-2 text-sm text-brand-800 italic">
               "{voiceAgent.transcript}"
             </div>
           )}
 
-          {/* Voice orb centered */}
+          {(voiceError || voiceAgent.error) && (
+            <div className="mx-4 mt-3 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-800 flex items-start gap-2">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              <p>{voiceError || voiceAgent.error}</p>
+            </div>
+          )}
+
+          {!voiceAgent.isSupported && (
+            <div className="mx-4 mt-3 rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs text-danger-700">
+              Voice input is not supported in this browser. You can still use typing mode.
+            </div>
+          )}
+
           <div className="flex justify-center py-5">
-            <VoiceOrb
-              state={voiceAgent.state}
-              onPress={voiceAgent.startListening}
-              size="lg"
-            />
+            <VoiceOrb state={voiceAgent.state} onPress={voiceAgent.startListening} size="lg" />
           </div>
 
-          {/* Text fallback link */}
-          <p className="text-center text-xs text-neutral-400 pb-2">
-            Or{' '}
-            <button onClick={() => setMode('text')} className="text-forest-700 font-medium underline underline-offset-2">
-              type your question
+          {isVoiceBusy && (
+            <div className="flex justify-center -mt-1 pb-3">
+              <button
+                onClick={voiceAgent.stopAll}
+                className="rounded-full bg-brand-600 hover:bg-brand-500 text-white px-5 py-2 text-sm font-semibold shadow-card active:scale-95 transition-all"
+                aria-label="Stop voice assistant"
+              >
+                Stop
+              </button>
+            </div>
+          )}
+
+          <p className="text-center text-xs text-neutral-500 pb-2">
+            Prefer typing?{' '}
+            <button
+              onClick={() => {
+                setMode('text')
+                inputRef.current?.focus()
+              }}
+              className="text-brand-700 font-medium underline underline-offset-2"
+            >
+              Open keyboard
             </button>
           </p>
         </div>
       )}
 
-      {/* ── Text mode ────────────────────────────────────────────── */}
       {mode === 'text' && (
-        <div className="flex-shrink-0 bg-white border-t border-neutral-200 px-4 py-3 max-w-2xl mx-auto w-full"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-
-          {/* Quick questions */}
+        <div
+          className="flex-shrink-0 bg-white border-t border-neutral-200 px-4 py-3 max-w-3xl mx-auto w-full"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+        >
           {messages.length <= 1 && (
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2">
-              {QUICK_QUESTIONS.map(q => (
-                <button key={q} onClick={() => handleSend(q)}
-                  className="bg-neutral-100 text-neutral-700 border border-neutral-200 rounded-full px-3 py-1.5 text-xs font-medium shrink-0 hover:bg-neutral-200 transition-colors">
-                  {q}
+              {quickQuestions.map(question => (
+                <button
+                  key={question}
+                  onClick={() => {
+                    void sendMessage(question)
+                  }}
+                  className="bg-brand-50 text-brand-700 border border-brand-200 rounded-full px-3 py-1.5 text-xs font-medium shrink-0 hover:bg-brand-100 transition-colors"
+                >
+                  {question}
                 </button>
               ))}
             </div>
@@ -245,22 +467,29 @@ export default function SarpanchGPT() {
             <input
               ref={inputRef}
               value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !loading && handleSend()}
-              placeholder="Ask about crops, weather, market..."
-              className="flex-1 bg-neutral-100 border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-forest-600 focus:ring-2 focus:ring-forest-900/10 transition-all resize-none"
+              onChange={event => setInput(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.shiftKey && !loading) {
+                  event.preventDefault()
+                  void sendMessage()
+                }
+              }}
+              placeholder="Ask Sarpanch Ji about crop, weather, mandi, or schemes..."
+              className="flex-1 bg-neutral-50 border border-brand-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
             />
             <button
-              onClick={() => handleSend()}
+              onClick={() => {
+                void sendMessage()
+              }}
               disabled={loading || !input.trim()}
-              className="w-11 h-11 bg-forest-900 text-white rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+              className="w-11 h-11 bg-brand-600 text-white rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 hover:bg-brand-500 transition-all"
+              aria-label="Send message"
             >
               <Send size={16} />
             </button>
           </div>
         </div>
       )}
-
     </div>
   )
 }

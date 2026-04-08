@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Bell,
   CloudDrizzle,
@@ -14,6 +15,7 @@ import {
 import toast from 'react-hot-toast'
 import Card from '../../components/ui/Card'
 import { useWeather } from '../../hooks/useWeather'
+import { initFCM, requestNotificationPermission } from '../../services/notificationService'
 import { getRelativeDay } from '../../utils/dateHelper'
 import type { LucideIcon } from 'lucide-react'
 
@@ -29,9 +31,30 @@ const ICONS: Record<string, LucideIcon> = {
 
 export default function WeatherAlerts() {
   const { current, forecast, alerts, isLoading, isAdvisoryLoading } = useWeather()
+  const [isAlertSetupLoading, setIsAlertSetupLoading] = useState(false)
 
-  const handleSetAlert = () => {
-    toast.success('Push notification set for severe weather alerts.')
+  const handleSetAlert = async () => {
+    setIsAlertSetupLoading(true)
+    try {
+      const hasPermission = await requestNotificationPermission()
+      if (!hasPermission) {
+        toast.error('Notification permission is required for weather alerts.')
+        return
+      }
+
+      const token = await initFCM()
+      if (token) {
+        toast.success('Push notifications enabled for severe weather alerts.')
+        return
+      }
+
+      toast.error('FCM is not fully configured. Please check Firebase + VAPID keys.')
+    } catch (error) {
+      console.error(error)
+      toast.error('Could not enable weather alerts right now.')
+    } finally {
+      setIsAlertSetupLoading(false)
+    }
   }
 
   const rainfallTotal = forecast.reduce((sum, day) => sum + day.rainfallMm, 0)
@@ -53,10 +76,11 @@ export default function WeatherAlerts() {
             </p>
           </div>
           <button
-            onClick={handleSetAlert}
+            onClick={() => void handleSetAlert()}
+            disabled={isAlertSetupLoading}
             className="bg-white/80 backdrop-blur border border-sky-100 text-sky-700 p-2.5 rounded-full shadow-sm active:scale-95 transition-transform"
           >
-            <Bell size={20} />
+            <Bell size={20} className={isAlertSetupLoading ? 'animate-pulse' : ''} />
           </button>
         </div>
 

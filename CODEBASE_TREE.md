@@ -2,7 +2,7 @@
 
 This file is a lightweight path index to quickly locate code and reduce repeated repository scans.
 
-- Generated: 2026-04-08 19:16:30 +05:30
+- Generated: 2026-04-08 20:44:39 +05:30
 - Root: D:\AGRITHON GIT
 - Excluded directories: .git, .tmp, node_modules
 - Regenerate: powershell -ExecutionPolicy Bypass -File scripts/generate-codebase-tree.ps1
@@ -36,7 +36,8 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |-- manifest.webmanifest
 |   \-- offline.html
 |-- scripts/
-|   \-- generate-codebase-tree.ps1
+|   |-- generate-codebase-tree.ps1
+|   \-- security-audit.mjs
 |-- src/
 |   |-- assets/
 |   |   |-- crop-disease-banner.png

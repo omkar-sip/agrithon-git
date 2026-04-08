@@ -43,6 +43,14 @@ The platform translates complex agricultural intelligence into actionable, acces
 
 Sarpanch AI adopts a modular, component-driven Frontend architecture integrated with scalable cloud services. 
 
+## Security Notes
+
+- `.env` and `.env.*` are ignored by git, while `.env.example` remains committed as a placeholder template.
+- Any variable prefixed with `VITE_` is exposed to the browser in a Vite app. Treat those values as public once deployed.
+- Browser-side Gemini and MSG91 access are disabled by default in production unless you explicitly opt in with `VITE_ALLOW_BROWSER_GEMINI=true` or `VITE_ALLOW_BROWSER_MSG91=true`.
+- Recommended production setup: keep Gemini and MSG91 behind a backend or serverless function instead of calling them directly from the browser.
+- Run `npm run security:audit` before pushing or deploying to catch common secret patterns in tracked files.
+
 ### Component Flow
 
 | Layer | Responsibility | Technologies |

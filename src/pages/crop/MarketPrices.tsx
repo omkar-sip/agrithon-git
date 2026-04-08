@@ -4,7 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { getMarketAdvice } from '../../services/gemini/geminiClient'
 import { fetchMarketPrices, hasLiveMarketApi } from '../../services/marketService'
-import { hasSmsApi, sendMarketPriceSms } from '../../services/messagingService'
+import {
+  getSmsApiAvailabilityReason,
+  hasSmsApi,
+  sendMarketPriceSms,
+} from '../../services/messagingService'
 import { useLanguageStore } from '../../store/useLanguageStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useAppStore } from '../../store/useAppStore'
@@ -47,6 +51,7 @@ export default function MarketPrices() {
 
   const hasLiveApi = hasLiveMarketApi()
   const hasSms = hasSmsApi()
+  const smsAvailabilityReason = getSmsApiAvailabilityReason()
 
   const loadPrices = useCallback(async (showToast = false) => {
     setIsLoadingPrices(true)
@@ -91,7 +96,7 @@ export default function MarketPrices() {
       return
     }
     setTargetPrice(String(Math.round(selected.pricePerQuintal + 200)))
-  }, [selected?.id, selected?.pricePerQuintal])
+  }, [selected])
 
   useEffect(() => {
     if (!isOnline) return
@@ -143,7 +148,11 @@ export default function MarketPrices() {
     })
 
     if (!hasSms) {
-      toast.success('Alert saved locally. Add MSG91 key to send SMS alerts.')
+      toast.success(
+        smsAvailabilityReason === 'blocked_in_browser'
+          ? 'Alert saved locally. Browser SMS is disabled in production; use a backend for delivery.'
+          : 'Alert saved locally. Add MSG91 config in your .env to send SMS alerts.'
+      )
       return
     }
 
@@ -175,7 +184,11 @@ export default function MarketPrices() {
     if (!selected) return
 
     if (!hasSms) {
-      toast.error('MSG91 key is missing. Add VITE_MSG91_AUTH_KEY in your .env.')
+      toast.error(
+        smsAvailabilityReason === 'blocked_in_browser'
+          ? 'Browser SMS is disabled in production. Use a backend proxy for MSG91 delivery.'
+          : 'MSG91 config is missing. Add VITE_MSG91_AUTH_KEY in your .env.'
+      )
       return
     }
 
@@ -304,7 +317,9 @@ export default function MarketPrices() {
                 <p className="text-[10px] text-mango-700 mt-2">
                   {hasSms
                     ? `SMS via MSG91 will be sent to ${farmerPhone || 'your profile phone'} when available.`
-                    : 'MSG91 key not found. Filter is saved locally for now.'}
+                    : smsAvailabilityReason === 'blocked_in_browser'
+                      ? 'Browser SMS is disabled in production. Filter is saved locally; use a backend sender for real delivery.'
+                      : 'MSG91 config not found. Filter is saved locally for now.'}
                 </p>
               </Card>
             </motion.div>
@@ -337,4 +352,3 @@ export default function MarketPrices() {
     </div>
   )
 }
-

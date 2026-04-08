@@ -1,14 +1,27 @@
 // src/services/gemini/geminiClient.ts
 // Gemini API client with feature-specific system prompts
 import { GoogleGenerativeAI, type GenerateContentResult, type Part } from '@google/generative-ai'
-import { env } from '../../config/env'
-
-const API_KEY = env.geminiApiKey
+import { apiAvailability, env, runtimeSecurity } from '../../config/env'
 
 let genAI: GoogleGenerativeAI | null = null
+let hasWarnedAboutBrowserGemini = false
+
+const getApiKey = () => {
+  if (apiAvailability.hasGeminiKey) return env.geminiApiKey
+
+  if (runtimeSecurity.geminiBlockedInBrowser && !hasWarnedAboutBrowserGemini) {
+    console.warn(
+      '[Gemini] Browser-side Gemini is disabled in production. Use a backend proxy or set VITE_ALLOW_BROWSER_GEMINI=true only for temporary demos.'
+    )
+    hasWarnedAboutBrowserGemini = true
+  }
+
+  return ''
+}
 
 const getClient = () => {
-  if (!genAI && API_KEY) genAI = new GoogleGenerativeAI(API_KEY)
+  const apiKey = getApiKey()
+  if (!genAI && apiKey) genAI = new GoogleGenerativeAI(apiKey)
   return genAI
 }
 
@@ -194,6 +207,10 @@ async function generate(
   userMessage: string,
   options: GenerateOptions = {}
 ): Promise<string> {
+  if (runtimeSecurity.geminiBlockedInBrowser) {
+    return 'Secure mode is active. Browser-side Gemini is disabled in production. Move AI requests to a backend or temporarily opt in with VITE_ALLOW_BROWSER_GEMINI=true.'
+  }
+
   const client = getClient()
   if (!client) {
     console.warn('[Gemini] No API key configured — returning mock response')
@@ -363,6 +380,10 @@ Keep language simple — the farmer is semi-literate.`
 
   const user = `Crop: ${params.cropType}
 Symptoms: ${params.symptomsDescription}`
+
+  if (runtimeSecurity.geminiBlockedInBrowser) {
+    return 'Secure mode is active. Browser-side Gemini is disabled in production. Move AI requests to a backend or temporarily opt in with VITE_ALLOW_BROWSER_GEMINI=true.'
+  }
 
   const client = getClient()
   if (!client) {
@@ -614,7 +635,8 @@ export async function synthesizeSarpanchSpeech(params: {
 }): Promise<SarpanchSpeechAudio | null> {
   const trimmed = params.text.trim()
   if (!trimmed) return null
-  if (!API_KEY) return null
+  const apiKey = getApiKey()
+  if (!apiKey) return null
 
   const voiceName = SARPANCH_VOICE_BY_LANG[params.language] || 'Kore'
   const ttsPrompt = `Read this advisory message exactly as written for an Indian farmer.
@@ -634,7 +656,7 @@ ${trimmed}`
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-goog-api-key': API_KEY,
+            'x-goog-api-key': apiKey,
           },
           body: JSON.stringify({
             model: modelName,
@@ -747,6 +769,10 @@ RULES:
   }${
     params.additionalNotes ? `\nFarmer notes: ${params.additionalNotes}` : ''
   }`
+
+  if (runtimeSecurity.geminiBlockedInBrowser) {
+    return 'Secure mode is active. Browser-side Gemini image analysis is disabled in production. Move AI requests to a backend or temporarily opt in with VITE_ALLOW_BROWSER_GEMINI=true.'
+  }
 
   const client = getClient()
   if (!client) {

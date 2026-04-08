@@ -1,4 +1,4 @@
-import { apiAvailability, env } from '../config/env'
+import { apiAvailability, env, runtimeSecurity } from '../config/env'
 import { apiClient } from './api'
 
 type SmsPayload = {
@@ -19,6 +19,10 @@ export type SendMarketSmsParams = {
   trendPercent: number
   targetPrice?: number
 }
+
+export type SmsApiAvailabilityReason = 'ready' | 'missing_key' | 'blocked_in_browser'
+
+let hasWarnedAboutBrowserSms = false
 
 const normalizeIndianPhone = (phone: string): string => {
   const digits = phone.replace(/\D/g, '')
@@ -44,9 +48,26 @@ const createMarketMessage = (params: SendMarketSmsParams): string => {
 
 export const hasSmsApi = () => apiAvailability.hasMsg91AuthKey
 
+export const getSmsApiAvailabilityReason = (): SmsApiAvailabilityReason => {
+  if (apiAvailability.hasMsg91AuthKey) return 'ready'
+  if (runtimeSecurity.msg91BlockedInBrowser) return 'blocked_in_browser'
+  return 'missing_key'
+}
+
 export const sendMarketPriceSms = async (params: SendMarketSmsParams): Promise<void> => {
   if (!hasSmsApi()) {
-    throw new Error('MSG91 auth key is not configured.')
+    if (runtimeSecurity.msg91BlockedInBrowser && !hasWarnedAboutBrowserSms) {
+      console.warn(
+        '[MSG91] Browser-side SMS is disabled in production. Use a backend proxy or set VITE_ALLOW_BROWSER_MSG91=true only for temporary demos.'
+      )
+      hasWarnedAboutBrowserSms = true
+    }
+
+    throw new Error(
+      runtimeSecurity.msg91BlockedInBrowser
+        ? 'Browser-side SMS is disabled in production.'
+        : 'MSG91 auth key is not configured.'
+    )
   }
 
   const normalizedPhone = normalizeIndianPhone(params.phone)
@@ -73,4 +94,3 @@ export const sendMarketPriceSms = async (params: SendMarketSmsParams): Promise<v
     },
   })
 }
-

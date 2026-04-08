@@ -1,116 +1,208 @@
-import { useState } from 'react'
-import { Camera, FlaskConical, MapPin, Search } from 'lucide-react'
-import Card from '../../components/ui/Card'
+import { useMemo, useState } from 'react'
+import { FlaskConical, Leaf, LoaderCircle, Sprout } from 'lucide-react'
+import { get, set } from 'idb-keyval'
 import toast from 'react-hot-toast'
-import { SkeletonCard } from '../../components/ui/Skeleton'
+import Card from '../../components/ui/Card'
+import { analyzeSoilHealth } from '../../services/ai'
+import { saveSoilReport } from '../../services/firebase/firestoreService'
+import { useAuthStore } from '../../store/useAuthStore'
+import { useLanguageStore } from '../../store/useLanguageStore'
+import { useLocationStore } from '../../store/useLocationStore'
+
+const SOIL_CACHE_PREFIX = 'mitti-sehat-report'
+
+const buildCacheKey = (soilType: string, crop: string, n: string, p: string, k: string) =>
+  `${SOIL_CACHE_PREFIX}:${soilType}:${crop}:${n}:${p}:${k}`.toLowerCase()
 
 export default function SoilHealth() {
-  const [activeTab, setActiveTab] = useState<'report' | 'labs'>('report')
-  const [loading, setLoading] = useState(false)
+  const farmer = useAuthStore((state) => state.farmer)
+  const { language } = useLanguageStore()
+  const district = useLocationStore((state) => state.district)
+
+  const [soilType, setSoilType] = useState('Loamy')
+  const [crop, setCrop] = useState(farmer?.crops?.[0] || 'Wheat')
   const [npk, setNpk] = useState({ n: '', p: '', k: '' })
-  
-  const handleSimulateOCR = () => {
-    setLoading(true)
-    setTimeout(() => {
-      setNpk({ n: '120', p: '25', k: '40' })
-      toast.success('Soil card scanned successfully!')
-      setLoading(false)
-    }, 1500)
+  const [result, setResult] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const cacheKey = useMemo(
+    () => buildCacheKey(soilType, crop, npk.n, npk.p, npk.k),
+    [crop, npk.k, npk.n, npk.p, soilType]
+  )
+
+  const handleAnalyze = async () => {
+    if (!crop.trim()) {
+      toast.error('Enter a crop first.')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const cached = await get<string>(cacheKey)
+      if (cached) {
+        setResult(cached)
+        toast.success('Loaded cached soil guidance.')
+        return
+      }
+
+      const analysis = await analyzeSoilHealth({
+        soilType,
+        crop,
+        npk,
+        language,
+      })
+
+      setResult(analysis)
+      await set(cacheKey, analysis)
+
+      if (farmer?.uid) {
+        await saveSoilReport({
+          userId: farmer.uid,
+          input: {
+            soilType,
+            crop,
+            npk,
+          },
+          result: analysis,
+        })
+      }
+
+      toast.success('Soil guidance ready.')
+    } catch (error) {
+      console.error(error)
+      toast.error('Unable to analyze soil right now.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <div className="page-container">
-      <div className="max-w-lg mx-auto w-full space-y-5 pb-20">
-        <h1 className="font-display font-bold text-2xl text-soil-800">🌱 Mitti Ki Sehat</h1>
-        <p className="text-soil-500 text-sm -mt-3">Soil Health Card & Lab Locator</p>
+    <div className="px-4 py-5 max-w-5xl mx-auto w-full space-y-5 pb-24">
+      <section className="rounded-[28px] bg-gradient-to-br from-amber-700 via-amber-600 to-lime-500 p-5 text-white shadow-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/75">Mitti Sehat</p>
+            <h1 className="mt-2 text-3xl font-black" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+              Understand soil before spending
+            </h1>
+            <p className="mt-2 text-sm text-white/90">
+              Enter soil type, crop, and optional NPK values to get a short fertilizer and suitability plan.
+            </p>
+          </div>
+          <div className="rounded-3xl bg-white/15 p-3">
+            <Leaf size={28} />
+          </div>
+        </div>
+      </section>
 
-        {/* Custom Tab Bar */}
-        <div className="flex p-1 bg-neutral-100 rounded-xl">
-          {['report', 'labs'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg capitalize transition-colors ${activeTab === tab ? 'bg-white text-forest-700 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
-            >
-              {tab === 'report' ? 'Soil Report' : 'Testing Labs'}
-            </button>
-          ))}
+      <Card className="space-y-4 border border-neutral-200">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
+            <FlaskConical size={20} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">Soil Input</h2>
+            <p className="text-sm text-neutral-500">Enter soil type, crop and optional NPK for AI recommendation.</p>
+          </div>
         </div>
 
-        {activeTab === 'report' && (
-          <div className="space-y-4">
-            
-            <button onClick={handleSimulateOCR} disabled={loading} className="w-full border-2 border-dashed border-forest-300 bg-forest-50 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-forest-100 transition-colors active:scale-95">
-               <div className="bg-white p-3 rounded-full shadow-sm text-forest-600"><Camera size={24}/></div>
-               <div className="text-center">
-                 <p className="font-bold text-forest-800">Scan Soil Health Card</p>
-                 <p className="text-xs text-forest-600 mt-1">Upload a photo to auto-fill (OCR)</p>
-               </div>
-            </button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1 text-sm">
+            <span className="font-semibold text-neutral-700">Soil type</span>
+            <select
+              value={soilType}
+              onChange={(event) => setSoilType(event.target.value)}
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 outline-none focus:border-amber-500"
+            >
+              {['Loamy', 'Clay', 'Sandy', 'Black soil', 'Red soil'].map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="font-semibold text-neutral-700">Crop</span>
+            <input
+              value={crop}
+              onChange={(event) => setCrop(event.target.value)}
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 outline-none focus:border-amber-500"
+              placeholder="Eg. Wheat"
+            />
+          </label>
+        </div>
 
-            {loading && <SkeletonCard />}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="space-y-1 text-sm">
+            <span className="font-bold text-neutral-700">Nitrogen (N) <span className="font-normal text-neutral-400">kg/acre</span></span>
+            <input
+              value={npk.n}
+              onChange={(event) => setNpk((current) => ({ ...current, n: event.target.value }))}
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 outline-none focus:border-amber-500"
+              placeholder="Optional"
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="font-semibold text-neutral-700">Phosphorus (P)</span>
+            <input
+              value={npk.p}
+              onChange={(event) => setNpk((current) => ({ ...current, p: event.target.value }))}
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 outline-none focus:border-amber-500"
+              placeholder="Optional"
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="font-semibold text-neutral-700">Potassium (K)</span>
+            <input
+              value={npk.k}
+              onChange={(event) => setNpk((current) => ({ ...current, k: event.target.value }))}
+              className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 outline-none focus:border-amber-500"
+              placeholder="Optional"
+            />
+          </label>
+        </div>
 
-            {!loading && (
-              <Card>
-                <h3 className="font-bold text-soil-800 mb-3 flex items-center gap-2"><FlaskConical size={18}/> Manual NPK Entry</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-soil-500 mb-1 block">Nitrogen (N)</label>
-                    <input type="number" value={npk.n} onChange={e => setNpk({...npk, n: e.target.value})} className="w-full bg-parchment rounded-lg p-2 text-center font-mono font-bold text-forest-800 border-2 border-transparent focus:border-forest-300" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-soil-500 mb-1 block">Phosphorus (P)</label>
-                    <input type="number" value={npk.p} onChange={e => setNpk({...npk, p: e.target.value})} className="w-full bg-parchment rounded-lg p-2 text-center font-mono font-bold text-forest-800 border-2 border-transparent focus:border-forest-300" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-soil-500 mb-1 block">Potassium (K)</label>
-                    <input type="number" value={npk.k} onChange={e => setNpk({...npk, k: e.target.value})} className="w-full bg-parchment rounded-lg p-2 text-center font-mono font-bold text-forest-800 border-2 border-transparent focus:border-forest-300" placeholder="0" />
-                  </div>
-                </div>
+        <button
+          type="button"
+          onClick={() => void handleAnalyze()}
+          disabled={isLoading}
+          className="w-full rounded-2xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {isLoading ? 'Analyzing soil...' : 'Get soil recommendation'}
+        </button>
+      </Card>
 
-                {npk.n && (
-                  <div className="mt-4 p-3 bg-harvest-50 rounded-lg border border-harvest-200">
-                    <p className="text-xs font-bold text-harvest-800 mb-1">Fertilizer Recommendation (Tomato):</p>
-                    <p className="text-sm text-harvest-900">Your Nitrogen is adequate. Reduce Urea application by 10kg/acre. Add Zinc sulphate to improve flowering.</p>
-                  </div>
-                )}
-              </Card>
-            )}
+      <Card className="space-y-4 border border-neutral-200">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl bg-lime-100 p-3 text-lime-700">
+            <Sprout size={20} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-neutral-900">Recommendation</h2>
+            <p className="text-sm text-neutral-500">Short, practical, local-language friendly output.</p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center gap-2 rounded-2xl bg-neutral-50 px-4 py-5 text-sm text-neutral-500">
+            <LoaderCircle size={18} className="animate-spin" />
+            Preparing Mitti Sehat guidance...
+          </div>
+        ) : result ? (
+          <div className="rounded-2xl bg-lime-50 px-4 py-4 text-sm leading-7 text-lime-950 whitespace-pre-wrap">
+            {result}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-neutral-300 px-4 py-6 text-center text-sm text-neutral-500">
+            No soil report yet. Submit the form to generate a fertilizer and crop suitability note.
           </div>
         )}
 
-        {activeTab === 'labs' && (
-          <div className="space-y-3">
-             <div className="relative">
-               <Search className="absolute left-3 top-3 text-neutral-400" size={18} />
-               <input type="text" placeholder="Search near Nashik..." className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-200 rounded-xl shadow-sm" />
-             </div>
-             
-             <Card>
-               <div className="flex justify-between items-start">
-                 <div>
-                    <h3 className="font-bold font-display text-lg text-soil-800">Govt Soil Testing Lab KVK</h3>
-                    <p className="text-sm text-neutral-500 flex items-center gap-1 mt-1"><MapPin size={14}/> Agricultural University, Nashik</p>
-                 </div>
-                 <span className="badge bg-green-100 text-green-800">Govt</span>
-               </div>
-               <button className="btn-primary mt-3 w-full border border-forest-600 bg-forest-50 text-forest-700">Get Directions</button>
-             </Card>
-
-             <Card>
-               <div className="flex justify-between items-start">
-                 <div>
-                    <h3 className="font-bold font-display text-lg text-soil-800">AgriCare Private Lab</h3>
-                    <p className="text-sm text-neutral-500 flex items-center gap-1 mt-1"><MapPin size={14}/> Pimpalgaon Baswant, Nashik</p>
-                 </div>
-                 <span className="badge bg-neutral-100 text-neutral-600">Private</span>
-               </div>
-               <button className="btn-primary mt-3 w-full border border-forest-600 bg-forest-50 text-forest-700">Get Directions</button>
-             </Card>
-          </div>
-        )}
-
-      </div>
+        <div className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+          Local tip: {district || 'Your district'} farmers should still confirm pH and organic carbon through the nearest soil lab for major fertilizer decisions.
+        </div>
+      </Card>
     </div>
   )
 }

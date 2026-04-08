@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/*.png', 'illustrations/*.svg'],
+      includeAssets: ['favicon.svg', 'icons.svg', 'farmer-illustration.png'],
       manifest: {
         name: 'Sarpanch AI',
         short_name: 'SarpanchAI',
@@ -18,8 +18,8 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/farmer-illustration.png', sizes: '512x512', type: 'image/png', purpose: 'any' }
         ]
       },
       workbox: {
@@ -43,7 +43,7 @@ export default defineConfig({
         ]
       },
       devOptions: {
-        enabled: true
+        enabled: false
       }
     })
   ],

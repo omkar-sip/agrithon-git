@@ -12,6 +12,12 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import FarmLocationMap from '../../components/shared/FarmLocationMap'
+import FarmingCategorySelector from '../../components/shared/FarmingCategorySelector'
+import { apiAvailability } from '../../config/env'
+import {
+  createUserProfilePayload,
+  saveFarmerProfile,
+} from '../../services/firebase/firestoreService'
 import { CATEGORY_META, useCategoryStore } from '../../store/useCategoryStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { DEFAULT_LOCATION_COORDS, reverseGeocodeLocation } from '../../services/weatherService'
@@ -33,12 +39,12 @@ type Land = '<1' | '1-5' | '5-10' | '10+'
 type Water = 'rain-fed' | 'irrigated' | 'pond'
 type Coords = { lat: number; lon: number }
 
-const STEPS = ['Your Info', 'Farm Location', 'Farm Details', 'Confirm']
+const STEPS = ['Farming Type', 'Your Info', 'Farm Location', 'Farm Details', 'Confirm']
 
 export default function Profile() {
   const navigate = useNavigate()
   const { farmer, setFarmer } = useAuthStore()
-  const { category } = useCategoryStore()
+  const { category, setCategory } = useCategoryStore()
 
   const [step, setStep] = useState(0)
   const [name, setName] = useState(farmer?.name || '')
@@ -61,8 +67,9 @@ export default function Profile() {
   }, [district, hasPickedLocation, state, village])
 
   const canProceed = () => {
-    if (step === 0) return name.trim().length >= 2
-    if (step === 1) return Boolean(hasPickedLocation || state || district || village)
+    if (step === 0) return Boolean(category)
+    if (step === 1) return name.trim().length >= 2
+    if (step === 2) return Boolean(hasPickedLocation || state || district || village)
     return true
   }
 
@@ -112,12 +119,31 @@ export default function Profile() {
   }
 
   const handleNext = () => {
-    if (step < 3) setStep(current => current + 1)
-    else handleComplete()
+    if (step < STEPS.length - 1) setStep(current => current + 1)
+    else void handleComplete()
   }
 
-  const handleComplete = () => {
-    setFarmer({
+  const persistProfile = async (profile: Parameters<typeof setFarmer>[0]) => {
+    if (!apiAvailability.hasFirebaseConfig || !farmer?.uid || farmer.uid === 'local') return
+
+    await saveFarmerProfile(
+      farmer.uid,
+      createUserProfilePayload(
+        {
+          ...farmer,
+          ...profile,
+          uid: farmer.uid,
+        },
+        { provider: useAuthStore.getState().authProvider, isProfileComplete: true }
+      )
+    )
+  }
+
+  const handleComplete = async () => {
+    const resolvedCategory = category || 'crop'
+    if (!category) setCategory(resolvedCategory)
+
+    const nextProfile = {
       uid: farmer?.uid || 'local',
       name: name.trim() || 'Farmer',
       coords: hasPickedLocation ? coords : null,
@@ -128,14 +154,27 @@ export default function Profile() {
       waterSource: water,
       crops: farmer?.crops || [],
       language: farmer?.language || 'en',
-      category: category || 'crop',
-    })
+      category: resolvedCategory,
+    } as const
+
+    setFarmer(nextProfile)
+
+    try {
+      await persistProfile(nextProfile)
+    } catch (error) {
+      console.error('[Firestore] Failed to save farmer profile.', error)
+      toast.error('Profile saved locally. Firestore sync failed, please check Firebase setup.')
+    }
+
     toast.success(`Welcome to Sarpanch AI, ${name.trim() || 'Farmer'}!`)
     navigate('/', { replace: true })
   }
 
-  const handleSkip = () => {
-    setFarmer({
+  const handleSkip = async () => {
+    const resolvedCategory = category || 'crop'
+    if (!category) setCategory(resolvedCategory)
+
+    const nextProfile = {
       uid: farmer?.uid || 'local',
       name: farmer?.name || 'Farmer',
       coords: null,
@@ -146,8 +185,18 @@ export default function Profile() {
       waterSource: 'rain-fed',
       crops: farmer?.crops || [],
       language: farmer?.language || 'en',
-      category: category || 'crop',
-    })
+      category: resolvedCategory,
+    } as const
+
+    setFarmer(nextProfile)
+
+    try {
+      await persistProfile(nextProfile)
+    } catch (error) {
+      console.error('[Firestore] Failed to save skipped farmer profile.', error)
+      toast.error('Profile saved locally. Firestore sync failed, please check Firebase setup.')
+    }
+
     navigate('/', { replace: true })
   }
 
@@ -173,7 +222,7 @@ export default function Profile() {
           <h1 className="text-lg font-bold text-neutral-900 flex-1" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
             Profile Setup
           </h1>
-          <button onClick={handleSkip} className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">
+          <button onClick={() => void handleSkip()} className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">
             Skip
           </button>
         </div>
@@ -204,6 +253,13 @@ export default function Profile() {
             className="px-6 py-4 max-w-lg mx-auto w-full space-y-5"
           >
             {step === 0 && (
+              <FarmingCategorySelector
+                category={category}
+                onSelectCategory={setCategory}
+              />
+            )}
+
+            {step === 1 && (
               <div className="space-y-6">
                 <div className="flex justify-center">
                   <div className="relative">
@@ -250,7 +306,7 @@ export default function Profile() {
               </div>
             )}
 
-            {step === 1 && (
+            {step === 2 && (
               <div className="space-y-4">
                 <div className="rounded-[28px] border border-neutral-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4 shadow-card">
                   <div className="flex items-start justify-between gap-3 mb-3">
@@ -339,7 +395,7 @@ export default function Profile() {
               </div>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <div className="space-y-5">
                 <div>
                   <label className="input-label">How much land do you farm?</label>
@@ -394,7 +450,7 @@ export default function Profile() {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
                   All set!
@@ -427,7 +483,7 @@ export default function Profile() {
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         <button onClick={handleNext} disabled={!canProceed()} className="btn-brand">
-          {step < 3 ? 'Continue' : 'Start Using Sarpanch AI'}
+          {step < STEPS.length - 1 ? 'Continue' : 'Start Using Sarpanch AI'}
         </button>
       </div>
     </div>

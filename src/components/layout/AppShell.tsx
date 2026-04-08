@@ -1,34 +1,47 @@
-// src/components/layout/AppShell.tsx — v4: non-fixed nav, proper flex layout
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import BottomNav from './BottomNav'
+import GlobalHeader from './GlobalHeader'
 import OfflineBanner from '../ui/OfflineBanner'
 import FAB from '../ui/FAB'
 import { useAppStore } from '../../store/useAppStore'
-import { useLocation } from 'react-router-dom'
 
-const NO_FAB_PATHS = ['/sarpanchgpt', '/login', '/splash', '/language', '/category', '/profile', '/scanner']
+const NO_FAB_PATHS = [
+  '/sarpanchgpt',
+  '/sarpanch-salah',
+  '/login',
+  '/splash',
+  '/language',
+  '/category',
+  '/profile',
+  '/scanner',
+  '/farm-rental',
+  '/farm-rental/service/',
+]
+
+const NO_HEADER_PATHS = ['/splash', '/language', '/category', '/login', '/farm-rental/service/']
+const HIDE_NAV_PATHS = ['/farm-rental/service/']
 
 export default function AppShell() {
-  const isOnline = useAppStore(s => s.isOnline)
+  const isOnline = useAppStore((state) => state.isOnline)
   const { pathname } = useLocation()
-  const showFab = !NO_FAB_PATHS.some(p => pathname.startsWith(p))
+
+  const showFab = !NO_FAB_PATHS.some((path) => pathname.startsWith(path))
+  const showHeader = !NO_HEADER_PATHS.some((path) => pathname.startsWith(path))
+  const showBottomNav = !HIDE_NAV_PATHS.some((path) => pathname.startsWith(path))
 
   return (
     <div className="page-root">
       {!isOnline && <OfflineBanner />}
 
-      {/* Scrollable content area — takes all remaining height above the nav */}
-      <main className="flex-1 overflow-y-auto no-scrollbar relative">
+      {showHeader && <GlobalHeader />}
+
+      <main className="relative flex-1 overflow-y-auto no-scrollbar">
         <Outlet />
-        {/* Extra bottom padding so last content isn't clipped by center scanner protrusion */}
-        <div className="h-8 shrink-0" aria-hidden />
+        {showBottomNav && <div className="h-8 shrink-0" aria-hidden />}
       </main>
 
-      {/* FAB sits above the nav, inside the flex flow but absolutely positioned within main */}
       {showFab && <FAB />}
-
-      {/* Bottom nav is a flex child — NOT fixed. It naturally sits at the bottom. */}
-      <BottomNav />
+      {showBottomNav && <BottomNav />}
     </div>
   )
 }

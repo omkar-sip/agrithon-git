@@ -63,7 +63,7 @@ export default function WeatherAlerts() {
 
   return (
     <div className="page-container bg-gradient-to-b from-sky-50 via-cyan-50/40 to-white">
-      <div className="max-w-lg mx-auto w-full space-y-5 pb-20 relative">
+      <div className="max-w-5xl mx-auto w-full space-y-5 pb-20 relative">
         <div className="absolute -top-10 -right-8 w-40 h-40 rounded-full bg-sky-200/35 blur-3xl pointer-events-none" />
         <div className="absolute top-40 -left-10 w-32 h-32 rounded-full bg-cyan-200/30 blur-3xl pointer-events-none" />
 
@@ -123,6 +123,7 @@ export default function WeatherAlerts() {
 
         <section className="space-y-3 relative">
           <h2 className="section-title text-sky-900">{title}</h2>
+        <div className="grid gap-3 lg:grid-cols-2">
           {isLoading && !forecast.length ? (
             <Card className="shadow-sm border border-neutral-200 rounded-2xl">
               <p className="text-sm text-neutral-500">Loading forecast for your farm...</p>
@@ -163,6 +164,7 @@ export default function WeatherAlerts() {
               )
             })
           )}
+        </div>
         </section>
 
         <section className="rounded-3xl p-4 border border-sky-200 bg-gradient-to-br from-white via-sky-50 to-cyan-50 shadow-card-md">

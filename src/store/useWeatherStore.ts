@@ -3,6 +3,7 @@ import { getWeatherAction } from '../services/gemini/geminiClient'
 import { fetchCurrentWeather, fetchForecast, getMockForecast, getMockWeather } from '../services/weatherService'
 import { useAuthStore } from './useAuthStore'
 import { useLanguageStore } from './useLanguageStore'
+import type { SupportedLanguage } from '../store/useLanguageStore'
 
 export interface WeatherData {
   temp: number
@@ -54,6 +55,7 @@ interface WeatherState {
   forecast: ForecastDay[]
   alerts: WeatherAlert[]
   advisorySummary: string
+  advisoryLanguage: SupportedLanguage | null
   lastFetched: number | null
   lastCoords: { lat: number; lon: number } | null
   isLoading: boolean
@@ -71,6 +73,8 @@ const WEATHER_CACHE_MS = 60 * 60 * 1000
 const ADVISORY_CACHE_MS = 6 * 60 * 60 * 1000
 
 let lastAdvisoryFetchedAt: number | null = null
+let pendingWeatherRequest: Promise<void> | null = null
+let pendingWeatherCoords: { lat: number; lon: number } | null = null
 
 const isSameCoords = (a: { lat: number; lon: number } | null, b: { lat: number; lon: number }) => {
   if (!a) return false
@@ -129,6 +133,7 @@ export const useWeatherStore = create<WeatherState>()((set, get) => ({
   forecast: [],
   alerts: [],
   advisorySummary: '',
+  advisoryLanguage: null,
   lastFetched: null,
   lastCoords: null,
   isLoading: false,
@@ -158,83 +163,106 @@ export const useWeatherStore = create<WeatherState>()((set, get) => ({
       forecast.length > 0
 
     if (alreadyFresh) return
+    if (!force && pendingWeatherRequest && isSameCoords(pendingWeatherCoords, coords)) {
+      return pendingWeatherRequest
+    }
 
-    set({ isLoading: true, error: null })
-
-    try {
-      const [current, nextForecast] = await Promise.all([
-        fetchCurrentWeather(lat, lon),
-        fetchForecast(lat, lon),
-      ])
-
-      const fallbackAlerts = fallbackAlertsFromForecast(nextForecast)
-      set({
-        current,
-        forecast: nextForecast,
-        alerts: fallbackAlerts,
-        advisorySummary: nextForecast[0]?.farmAction || '',
-        lastFetched: Date.now(),
-        lastCoords: coords,
-        isLoading: false,
-      })
-
-      const farmer = useAuthStore.getState().farmer
-      const language = useLanguageStore.getState().language
-      const shouldRefreshAdvisory =
-        force ||
-        !lastAdvisoryFetchedAt ||
-        Date.now() - lastAdvisoryFetchedAt > ADVISORY_CACHE_MS ||
-        !isSameCoords(lastCoords, coords)
-
-      if (!shouldRefreshAdvisory) return
-
-      set({ isAdvisoryLoading: true })
+    const request = (async () => {
+      set({ isLoading: true, error: null })
 
       try {
-        const advisoryText = await getWeatherAction({
-          category: farmer?.category || 'crop',
-          crops: farmer?.crops || [],
-          waterSource: farmer?.waterSource,
-          location: current.location,
-          currentWeather: JSON.stringify(current),
-          forecast: JSON.stringify(nextForecast),
-          language,
-        })
+        const language = useLanguageStore.getState().language
 
-        const advisory = parseAdvisoryPayload(advisoryText)
-        const mergedForecast = mergeForecastWithAdvisory(nextForecast, advisory)
-        const mergedAlerts = advisory?.alerts?.length ? advisory.alerts : fallbackAlertsFromForecast(mergedForecast)
+        const [current, nextForecast] = await Promise.all([
+          fetchCurrentWeather(lat, lon, language),
+          fetchForecast(lat, lon, language),
+        ])
 
-        lastAdvisoryFetchedAt = Date.now()
-
+        const fallbackAlerts = fallbackAlertsFromForecast(nextForecast)
         set({
-          forecast: mergedForecast,
-          alerts: mergedAlerts,
-          advisorySummary: advisory?.summary || mergedForecast[0]?.farmAction || '',
-          isAdvisoryLoading: false,
-        })
-      } catch {
-        lastAdvisoryFetchedAt = Date.now()
-        set({
-          alerts: fallbackAlertsFromForecast(nextForecast),
+          current,
+          forecast: nextForecast,
+          alerts: fallbackAlerts,
           advisorySummary: nextForecast[0]?.farmAction || '',
+          advisoryLanguage: language,
+          lastFetched: Date.now(),
+          lastCoords: coords,
+          isLoading: false,
+        })
+
+        const farmer = useAuthStore.getState().farmer
+        const shouldRefreshAdvisory =
+          force ||
+          !lastAdvisoryFetchedAt ||
+          Date.now() - lastAdvisoryFetchedAt > ADVISORY_CACHE_MS ||
+          !isSameCoords(lastCoords, coords)
+
+        if (!shouldRefreshAdvisory) return
+
+        set({ isAdvisoryLoading: true })
+
+        try {
+          const advisoryText = await getWeatherAction({
+            category: farmer?.category || 'crop',
+            crops: farmer?.crops || [],
+            waterSource: farmer?.waterSource,
+            location: current.location,
+            currentWeather: JSON.stringify(current),
+            forecast: JSON.stringify(nextForecast),
+            language,
+          })
+
+          const advisory = parseAdvisoryPayload(advisoryText)
+          const mergedForecast = mergeForecastWithAdvisory(nextForecast, advisory)
+          const mergedAlerts = advisory?.alerts?.length ? advisory.alerts : fallbackAlertsFromForecast(mergedForecast)
+
+          lastAdvisoryFetchedAt = Date.now()
+
+          set({
+            forecast: mergedForecast,
+            alerts: mergedAlerts,
+            advisorySummary: advisory?.summary || mergedForecast[0]?.farmAction || '',
+            advisoryLanguage: language,
+            isAdvisoryLoading: false,
+          })
+        } catch {
+          lastAdvisoryFetchedAt = Date.now()
+          set({
+            alerts: fallbackAlertsFromForecast(nextForecast),
+            advisorySummary: nextForecast[0]?.farmAction || '',
+            advisoryLanguage: language,
+            isAdvisoryLoading: false,
+          })
+        }
+      } catch (error) {
+        const language = useLanguageStore.getState().language
+        const fallbackCurrent = getMockWeather(language)
+        const fallbackForecast = getMockForecast(language)
+        set({
+          current: fallbackCurrent,
+          forecast: fallbackForecast,
+          alerts: fallbackAlertsFromForecast(fallbackForecast),
+          advisorySummary: fallbackForecast[0]?.farmAction || '',
+          advisoryLanguage: language,
+          lastFetched: Date.now(),
+          lastCoords: coords,
+          isLoading: false,
           isAdvisoryLoading: false,
+          error: error instanceof Error ? error.message : 'Unable to fetch weather right now.',
         })
       }
-    } catch (error) {
-      const fallbackCurrent = getMockWeather()
-      const fallbackForecast = getMockForecast()
-      set({
-        current: fallbackCurrent,
-        forecast: fallbackForecast,
-        alerts: fallbackAlertsFromForecast(fallbackForecast),
-        advisorySummary: fallbackForecast[0]?.farmAction || '',
-        lastFetched: Date.now(),
-        lastCoords: coords,
-        isLoading: false,
-        isAdvisoryLoading: false,
-        error: error instanceof Error ? error.message : 'Unable to fetch weather right now.',
-      })
+    })()
+
+    pendingWeatherRequest = request
+    pendingWeatherCoords = coords
+
+    try {
+      await request
+    } finally {
+      if (pendingWeatherRequest === request) {
+        pendingWeatherRequest = null
+        pendingWeatherCoords = null
+      }
     }
   },
 }))

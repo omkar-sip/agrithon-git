@@ -32,7 +32,7 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
   return permission === 'granted'
 }
 
-export const showLocalNotification = (title: string, body: string, icon = '/icons/icon-192.png') => {
+export const showLocalNotification = (title: string, body: string, icon = '/favicon.svg') => {
   if (!hasNotificationSupport()) return
   if (Notification.permission !== 'granted') return
   new Notification(title, { body, icon, badge: icon })

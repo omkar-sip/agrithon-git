@@ -94,10 +94,22 @@
     @apply max-w-lg mx-auto w-full;
   }
 
-  /* Desktop layout expansion */
+  /* Desktop / Laptop layout expansion */
+  @screen md {
+    .page-container {
+      @apply max-w-3xl px-6;
+    }
+  }
+
   @screen lg {
     .page-container {
-      @apply max-w-2xl px-8;
+      @apply max-w-5xl px-8;
+    }
+  }
+
+  @screen xl {
+    .page-container {
+      @apply max-w-6xl px-10;
     }
   }
 
@@ -223,6 +235,23 @@
     font-family: 'Baloo 2', sans-serif;
   }
 
+  /* ── Laptop-friendly stat grid ──────────────────────────────────── */
+  .stat-grid {
+    @apply grid gap-3;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  /* ── Live data badge ────────────────────────────────────────────── */
+  .badge-live {
+    @apply inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full;
+    @apply bg-emerald-100 text-emerald-800 border border-emerald-200;
+  }
+
+  .badge-demo {
+    @apply inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full;
+    @apply bg-amber-100 text-amber-800 border border-amber-200;
+  }
+
   /* ── Navigation — Bottom nav with center scanner button ──────────── */
   .bottom-nav {
     @apply shrink-0 z-50 bg-white border-t border-neutral-200;
@@ -231,8 +260,19 @@
   }
 
   .bottom-nav-inner {
-    @apply flex items-stretch justify-around max-w-lg mx-auto relative;
+    @apply flex items-stretch justify-around mx-auto relative;
+    max-width: 640px;
     height: 60px;
+  }
+
+  /* On large screens, bottom-nav sits centered below content */
+  @screen lg {
+    .bottom-nav {
+      @apply border-t border-neutral-200;
+    }
+    .bottom-nav-inner {
+      max-width: 640px;
+    }
   }
 
   .bottom-nav-center {

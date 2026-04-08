@@ -21,6 +21,37 @@ export interface FarmerProfile {
 
 export type AuthProvider = 'google' | 'email' | 'phone' | 'guest'
 
+type AuthIdentity = {
+  uid: string
+  name: string
+  email?: string
+  phone?: string
+  photoURL?: string
+}
+
+export const createDefaultFarmerProfile = ({
+  uid,
+  name,
+  email,
+  phone,
+  photoURL,
+}: AuthIdentity): FarmerProfile => ({
+  uid,
+  name,
+  email,
+  phone,
+  photoURL,
+  coords: null,
+  state: '',
+  district: '',
+  village: '',
+  landHolding: '<1',
+  crops: [],
+  waterSource: 'rain-fed',
+  language: 'en',
+  category: 'crop',
+})
+
 interface AuthState {
   isAuthenticated: boolean
   isGuest: boolean
@@ -37,6 +68,8 @@ interface AuthState {
     phone?: string
     photoURL?: string
     provider: AuthProvider
+    profile?: Partial<FarmerProfile>
+    isProfileComplete?: boolean
   }) => void
   setFarmer: (profile: Partial<FarmerProfile>) => void
   setGuest: () => void
@@ -53,28 +86,31 @@ export const useAuthStore = create<AuthState>()(
       farmer: null,
       isProfileComplete: false,
 
-      setAuthenticated: ({ uid, name, email, phone, photoURL, provider }) =>
+      setAuthenticated: ({
+        uid,
+        name,
+        email,
+        phone,
+        photoURL,
+        provider,
+        profile,
+        isProfileComplete,
+      }) =>
         set({
           isAuthenticated: true,
           isGuest: false,
           authProvider: provider,
           phone: phone || null,
           farmer: {
+            ...createDefaultFarmerProfile({ uid, name, email, phone, photoURL }),
+            ...profile,
             uid,
-            name,
-            email,
-            phone,
-            photoURL,
-            coords: null,
-            state: '',
-            district: '',
-            village: '',
-            landHolding: '<1',
-            crops: [],
-            waterSource: 'rain-fed',
-            language: 'en',
-            category: 'crop',
+            name: profile?.name || name,
+            email: profile?.email ?? email,
+            phone: profile?.phone ?? phone,
+            photoURL: profile?.photoURL ?? photoURL,
           },
+          isProfileComplete: isProfileComplete ?? false,
         }),
 
       setFarmer: (profile) =>

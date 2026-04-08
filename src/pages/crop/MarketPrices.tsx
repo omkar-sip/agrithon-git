@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Send, RefreshCw, Bell, Smartphone, MapPin } from 'lucide-react'
+import { Send, RefreshCw, Bell, Smartphone, MapPin, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { getMarketAdvice } from '../../services/gemini/geminiClient'
 import { fetchMarketPrices, hasLiveMarketApi } from '../../services/marketService'
+import { getNearbyMandiComparison, type MandiComparison } from '../../services/mandi'
 import {
   getSmsApiAvailabilityReason,
   hasSmsApi,
@@ -12,6 +13,7 @@ import {
 import { useLanguageStore } from '../../store/useLanguageStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useAppStore } from '../../store/useAppStore'
+import { useLocationStore } from '../../store/useLocationStore'
 import MarketPriceCard from '../../components/shared/MarketPriceCard'
 import Card from '../../components/ui/Card'
 import { SkeletonCard } from '../../components/ui/Skeleton'
@@ -33,10 +35,22 @@ const saveAlertDraft = (draft: AlertDraft) => {
   localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(next))
 }
 
+const TrendBadge = ({ trend, percent }: { trend: MarketPrice['trend']; percent: number }) => {
+  const Icon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus
+  const bg = trend === 'up' ? 'bg-emerald-100 text-emerald-800' : trend === 'down' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${bg}`}>
+      <Icon size={12} />
+      {percent > 0 ? '+' : ''}{percent}%
+    </span>
+  )
+}
+
 export default function MarketPrices() {
   const { language } = useLanguageStore()
   const farmerPhone = useAuthStore(s => s.farmer?.phone || s.phone || '')
   const isOnline = useAppStore(s => s.isOnline)
+  const locationState = useLocationStore(s => s.state)
 
   const [prices, setPrices] = useState<MarketPrice[]>([])
   const [selected, setSelected] = useState<MarketPrice | null>(null)
@@ -49,6 +63,10 @@ export default function MarketPrices() {
   const [lastUpdatedLabel, setLastUpdatedLabel] = useState('')
   const [dataSource, setDataSource] = useState<'live' | 'mock'>('mock')
 
+  // Real nearby mandi comparison data
+  const [nearbyMandis, setNearbyMandis] = useState<MandiComparison[]>([])
+  const [isComparisonLoading, setIsComparisonLoading] = useState(false)
+
   const hasLiveApi = hasLiveMarketApi()
   const hasSms = hasSmsApi()
   const smsAvailabilityReason = getSmsApiAvailabilityReason()
@@ -56,7 +74,7 @@ export default function MarketPrices() {
   const loadPrices = useCallback(async (showToast = false) => {
     setIsLoadingPrices(true)
     try {
-      const nextPrices = await fetchMarketPrices(selected?.mandi)
+      const nextPrices = await fetchMarketPrices({ state: locationState || undefined })
 
       setPrices(nextPrices)
       setDataSource(hasLiveApi ? 'live' : 'mock')
@@ -84,11 +102,42 @@ export default function MarketPrices() {
     } finally {
       setIsLoadingPrices(false)
     }
-  }, [hasLiveApi, selected?.mandi])
+  }, [hasLiveApi, locationState])
 
   useEffect(() => {
     void loadPrices()
   }, [loadPrices])
+
+  // Load real nearby mandi comparison when a commodity is selected
+  useEffect(() => {
+    if (!selected) {
+      setNearbyMandis([])
+      return
+    }
+
+    let cancelled = false
+    setIsComparisonLoading(true)
+
+    getNearbyMandiComparison(selected.commodity, selected.state)
+      .then(comparisons => {
+        if (!cancelled) {
+          // Filter out the currently selected mandi to avoid self-comparison
+          const filtered = comparisons.filter(
+            m => m.mandi.toLowerCase() !== selected.mandi.toLowerCase()
+          )
+          setNearbyMandis(filtered)
+        }
+      })
+      .catch(err => {
+        console.warn('[MandiComparison]', err)
+        if (!cancelled) setNearbyMandis([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsComparisonLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [selected?.commodity, selected?.state, selected?.mandi])
 
   useEffect(() => {
     if (!selected) {
@@ -109,18 +158,21 @@ export default function MarketPrices() {
 
   const priceSummary = useMemo(() => {
     if (!selected) return ''
-    return `Rs${selected.pricePerQuintal}/qtl at ${selected.mandi}`
+    return `₹${selected.pricePerQuintal.toLocaleString('en-IN')}/qtl at ${selected.mandi}`
   }, [selected])
 
   const handleGetAdvice = async () => {
     if (!selected) return
     setAdviceLoading(true)
     try {
+      const mandiNames = nearbyMandis.length
+        ? nearbyMandis.slice(0, 3).map(m => `${m.mandi} (₹${m.pricePerQuintal})`).join(', ')
+        : `${selected.mandi}`
       const resp = await getMarketAdvice({
         commodity: selected.commodity,
         currentPrice: selected.pricePerQuintal,
         priceTrend: `${selected.trend} ${selected.trendPercent}% this week`,
-        nearestMandis: `${selected.mandi}, Pune, Mumbai`,
+        nearestMandis: mandiNames,
         language,
       })
       setAdvice(resp)
@@ -217,12 +269,12 @@ export default function MarketPrices() {
 
   return (
     <div className="page-container">
-      <div className="max-w-lg mx-auto w-full space-y-5 pb-20">
+      <div className="max-w-5xl mx-auto w-full space-y-5 pb-20">
         <div className="flex items-center justify-between">
-          <h1 className="font-display font-bold text-2xl text-forest-800">Market Intelligence</h1>
+          <h1 className="font-display font-bold text-2xl lg:text-3xl text-forest-800">Market Intelligence</h1>
           <button
             onClick={() => void loadPrices(true)}
-            className="flex items-center gap-1 text-forest-600 bg-forest-50 p-2 rounded-full min-h-fit"
+            className="flex items-center gap-1 text-forest-600 bg-forest-50 p-2 rounded-full min-h-fit hover:bg-forest-100 transition-colors"
             disabled={isLoadingPrices}
           >
             <RefreshCw size={18} className={isLoadingPrices ? 'animate-spin' : ''} />
@@ -230,10 +282,10 @@ export default function MarketPrices() {
         </div>
 
         <div className="flex items-center justify-between text-xs">
-          <span className={`font-semibold px-2 py-1 rounded-full ${dataSource === 'live' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-            {dataSource === 'live' ? 'Live market API' : 'Fallback demo data'}
+          <span className={`font-bold px-3 py-1.5 rounded-full ${dataSource === 'live' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
+            {dataSource === 'live' ? '● Live — Agmarknet API' : '◌ Demo data — API unavailable'}
           </span>
-          {lastUpdatedLabel ? <span className="text-soil-500">Updated {lastUpdatedLabel}</span> : null}
+          {lastUpdatedLabel ? <span className="text-soil-500 font-semibold">Updated {lastUpdatedLabel}</span> : null}
         </div>
 
         <div className="flex gap-2">
@@ -247,7 +299,8 @@ export default function MarketPrices() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        {/* Market price cards — responsive grid on larger screens */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {isLoadingPrices && !prices.length ? (
             [1, 2, 3].map(item => <SkeletonCard key={item} />)
           ) : (
@@ -255,37 +308,92 @@ export default function MarketPrices() {
               <div
                 key={price.id}
                 onClick={() => setSelected(price)}
-                className={`cursor-pointer transition-all ${selected?.id === price.id ? 'ring-2 ring-forest-500 rounded-xl' : ''}`}
+                className={`cursor-pointer transition-all ${selected?.id === price.id ? 'ring-2 ring-forest-500 rounded-xl scale-[1.01]' : 'hover:ring-1 hover:ring-forest-200 rounded-xl'}`}
               >
                 <MarketPriceCard price={price} />
-                {selected?.id === price.id && (
-                  <div className="bg-forest-50 border-x-2 border-b-2 border-forest-500 rounded-b-xl -mt-2 pt-4 pb-3 px-4 shadow-sm">
-                    <p className="text-xs font-bold text-forest-800 mb-2">Nearby Mandis Comparison:</p>
-                    <div className="flex justify-between w-full text-xs text-forest-700 font-mono bg-white p-2 border border-forest-200 rounded-lg">
-                      <div className="text-center"><span>Pune</span><br /><span className="font-bold text-danger-600">Rs{price.pricePerQuintal - 120}</span></div>
-                      <div className="border-r border-forest-200" />
-                      <div className="text-center"><span>{price.mandi}</span><br /><span className="font-bold text-forest-800">Rs{price.pricePerQuintal}</span></div>
-                      <div className="border-r border-forest-200" />
-                      <div className="text-center"><span>Mumbai</span><br /><span className="font-bold text-success-600">Rs{price.pricePerQuintal + 250}</span></div>
-                    </div>
-                  </div>
-                )}
               </div>
             ))
           )}
         </div>
 
+        {/* Real Nearby Mandi Comparison — uses actual API data */}
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border-2 border-forest-200 bg-gradient-to-br from-forest-50 to-emerald-50 p-4 lg:p-5 shadow-sm"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-bold text-base lg:text-lg text-forest-900">
+                📊 Mandi Price Comparison — {selected.commodity}
+              </h3>
+              {isComparisonLoading && (
+                <span className="text-xs text-forest-600 animate-pulse font-semibold">Loading real prices...</span>
+              )}
+            </div>
+
+            {/* Current selected mandi highlighted */}
+            <div className="rounded-xl bg-forest-600 text-white p-3 mb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-forest-100 font-semibold uppercase tracking-wide">Selected Mandi</p>
+                  <p className="font-bold text-lg">{selected.mandi}</p>
+                  <p className="text-xs text-forest-200">{selected.state}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono font-bold text-2xl">₹{selected.pricePerQuintal.toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-forest-200">/quintal</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Nearby mandis */}
+            {nearbyMandis.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {nearbyMandis.map((m, i) => {
+                  const diff = m.pricePerQuintal - selected.pricePerQuintal
+                  const diffPercent = ((diff / selected.pricePerQuintal) * 100).toFixed(1)
+                  const isHigher = diff > 0
+
+                  return (
+                    <div key={`${m.mandi}-${i}`} className="rounded-xl bg-white border border-forest-100 p-3 shadow-sm">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-bold text-sm text-neutral-900 truncate">{m.mandi}</p>
+                        <TrendBadge trend={m.trend} percent={m.trendPercent} />
+                      </div>
+                      <p className="text-xs text-neutral-500">{m.state}</p>
+                      <div className="flex items-end justify-between mt-2">
+                        <p className="font-mono font-bold text-lg text-neutral-900">
+                          ₹{m.pricePerQuintal.toLocaleString('en-IN')}
+                        </p>
+                        <span className={`text-xs font-bold ${isHigher ? 'text-emerald-700' : diff < 0 ? 'text-red-700' : 'text-neutral-500'}`}>
+                          {isHigher ? '+' : ''}{diff > 0 || diff < 0 ? `₹${Math.abs(diff).toLocaleString('en-IN')} (${diffPercent}%)` : 'Same'}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : !isComparisonLoading ? (
+              <div className="flex items-center gap-2 text-sm text-forest-700 bg-white rounded-xl p-3 border border-forest-100">
+                <Info size={16} />
+                <span>No comparison data available for {selected.commodity} in {selected.state}. Try a broader search.</span>
+              </div>
+            ) : null}
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setAlertBoxOpen(!alertBoxOpen)}
-            className="flex items-center justify-center gap-2 bg-white border-2 border-mango-100 text-mango-700 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-transform"
+            className="flex items-center justify-center gap-2 bg-white border-2 border-mango-200 text-mango-800 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-transform hover:bg-mango-50"
           >
             <Bell size={16} /> Target Alert
           </button>
           <button
             onClick={() => void handleSendSMS()}
             disabled={isSmsLoading || !selected}
-            className="flex items-center justify-center gap-2 bg-white border-2 border-sky-100 text-sky-700 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-transform disabled:opacity-50"
+            className="flex items-center justify-center gap-2 bg-white border-2 border-sky-200 text-sky-800 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-transform disabled:opacity-50 hover:bg-sky-50"
           >
             <Smartphone size={16} /> {isSmsLoading ? 'Sending...' : 'SMS Me Prices'}
           </button>
@@ -298,7 +406,7 @@ export default function MarketPrices() {
                 <h3 className="font-bold text-mango-900 mb-2 flex items-center gap-2"><Bell size={16} /> Notify me when price hits:</h3>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-3 text-mango-600 font-bold">Rs</span>
+                    <span className="absolute left-3 top-3 text-mango-600 font-bold">₹</span>
                     <input
                       type="number"
                       value={targetPrice}
@@ -344,7 +452,7 @@ export default function MarketPrices() {
         )}
 
         {selected && (
-          <p className="text-xs text-soil-500 text-center">
+          <p className="text-xs text-soil-500 text-center font-semibold">
             Selected: {priceSummary}
           </p>
         )}

@@ -1,32 +1,33 @@
-// src/components/layout/BottomNav.tsx — v3 with center crop scanner button
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, Mountain, ShoppingCart, User, ScanLine, Tractor } from 'lucide-react'
+import { Home, Mountain, ShoppingCart, ScanLine, Tractor } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from 'react-i18next'
 
 const NAV_ITEMS = [
-  { label: 'Home',    icon: Home,         path: '/',           exact: true  },
-  { label: 'Fields',  icon: Mountain,     path: '/fields',     exact: false },
-  // Center scanner button is rendered separately
-  { label: 'Market',  icon: ShoppingCart,  path: '/marketplace', exact: false },
-  { label: 'Farm Equipment Rental', icon: Tractor, path: '/farm-rental', exact: false },
-  { label: 'Profile', icon: User,          path: '/settings',    exact: false },
-]
+  { key: 'nav.home', icon: Home, path: '/', exact: true },
+  { key: 'nav.fields', icon: Mountain, path: '/fields', exact: false },
+  { key: 'nav.market', icon: ShoppingCart, path: '/marketplace', exact: false },
+  { key: 'nav.rental', icon: Tractor, path: '/farm-rental', exact: false },
+] as const
 
 export default function BottomNav() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   return (
     <nav className="bottom-nav" style={{ overflow: 'visible' }}>
       <div className="bottom-nav-inner">
-        {NAV_ITEMS.slice(0, 2).map(({ label, icon: Icon, path, exact }) => (
+        {NAV_ITEMS.slice(0, 2).map(({ key, icon: Icon, path, exact }) => (
           <NavLink
-            key={label}
+            key={key}
             to={path}
             end={exact}
-            className={({ isActive }) => clsx(
-              'flex flex-col items-center justify-center flex-1 gap-1 transition-colors duration-150 relative',
-              isActive ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'
-            )}
+            className={({ isActive }) =>
+              clsx(
+                'relative flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150',
+                isActive ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'
+              )
+            }
           >
             {({ isActive }) => (
               <>
@@ -35,41 +36,44 @@ export default function BottomNav() {
                   strokeWidth={isActive ? 2.2 : 1.6}
                   className="transition-all duration-150"
                 />
-                <span className={clsx(
-                  'font-medium transition-all duration-150 text-center',
-                  label === 'Farm Equipment Rental' ? 'text-[8px] leading-tight max-w-[56px]' : 'text-[10px]',
-                  isActive ? 'text-brand-600' : 'text-neutral-400'
-                )}>
-                  {label}
+                <span
+                  className={clsx(
+                    'text-[10px] font-bold transition-all duration-150',
+                    isActive ? 'text-brand-600' : 'text-neutral-400'
+                  )}
+                >
+                  {t(key)}
                 </span>
                 {isActive && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-brand-600 rounded-full" />
+                  <span className="absolute left-1/2 top-0 h-0.5 w-6 -translate-x-1/2 rounded-full bg-brand-600" />
                 )}
               </>
             )}
           </NavLink>
         ))}
 
-        {/* Center — Crop Scanner Button */}
-        <div className="flex-1 relative">
+        <div className="relative flex-1">
           <button
+            type="button"
             onClick={() => navigate('/scanner')}
             className="bottom-nav-center"
-            aria-label="Scan Crop Disease"
+            aria-label={t('nav.scanCropDisease')}
           >
             <ScanLine size={24} strokeWidth={2} />
           </button>
         </div>
 
-        {NAV_ITEMS.slice(2).map(({ label, icon: Icon, path, exact }) => (
+        {NAV_ITEMS.slice(2).map(({ key, icon: Icon, path, exact }) => (
           <NavLink
-            key={label}
+            key={key}
             to={path}
             end={exact}
-            className={({ isActive }) => clsx(
-              'flex flex-col items-center justify-center flex-1 gap-1 transition-colors duration-150 relative',
-              isActive ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'
-            )}
+            className={({ isActive }) =>
+              clsx(
+                'relative flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150',
+                isActive ? 'text-brand-600' : 'text-neutral-400 hover:text-neutral-600'
+              )
+            }
           >
             {({ isActive }) => (
               <>
@@ -78,15 +82,16 @@ export default function BottomNav() {
                   strokeWidth={isActive ? 2.2 : 1.6}
                   className="transition-all duration-150"
                 />
-                <span className={clsx(
-                  'font-medium transition-all duration-150 text-center',
-                  label === 'Farm Equipment Rental' ? 'text-[8px] leading-tight max-w-[56px]' : 'text-[10px]',
-                  isActive ? 'text-brand-600' : 'text-neutral-400'
-                )}>
-                  {label}
+                <span
+                  className={clsx(
+                    'text-[10px] font-bold transition-all duration-150',
+                    isActive ? 'text-brand-600' : 'text-neutral-400'
+                  )}
+                >
+                  {t(key)}
                 </span>
                 {isActive && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-brand-600 rounded-full" />
+                  <span className="absolute left-1/2 top-0 h-0.5 w-6 -translate-x-1/2 rounded-full bg-brand-600" />
                 )}
               </>
             )}

@@ -6,13 +6,18 @@ type AgmarknetRecord = Record<string, string | number | null | undefined>
 
 type AgmarknetResponse = {
   records?: AgmarknetRecord[]
+  total?: number
+  count?: number
 }
 
 type NormalizedMandiRecord = {
   commodity: string
   mandi: string
+  district: string
   state: string
   pricePerQuintal: number
+  minPrice: number
+  maxPrice: number
   updatedAt: string
 }
 
@@ -30,31 +35,60 @@ const parseNumeric = (value: string): number => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+/**
+ * Agmarknet returns dates as DD/MM/YYYY (Indian format).
+ * new Date() parses this as MM/DD/YYYY which is WRONG for day > 12.
+ * We must explicitly parse DD/MM/YYYY.
+ */
 const parseDateIso = (value: string): string => {
   if (!value) return new Date().toISOString()
+
+  // Handle DD/MM/YYYY format from Agmarknet
+  const ddmmyyyy = value.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/)
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy
+    const date = new Date(Number(year), Number(month) - 1, Number(day))
+    if (!Number.isNaN(date.getTime())) return date.toISOString()
+  }
+
+  // Handle ISO format or other standard formats
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return new Date().toISOString()
-  return parsed.toISOString()
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+
+  return new Date().toISOString()
 }
 
 const normalizeRecord = (record: AgmarknetRecord): NormalizedMandiRecord | null => {
   const commodity = readField(record, ['commodity', 'Commodity', 'crop_name', 'Crop'])
-  const mandi = readField(record, ['market', 'mandi', 'market_name', 'Market'])
+  const mandi = readField(record, ['market', 'Market', 'market_name', 'mandi'])
+  const district = readField(record, ['district', 'District']) || ''
   const state = readField(record, ['state', 'State', 'state_name']) || 'Unknown'
-  const price = parseNumeric(
-    readField(record, ['modal_price', 'Modal_Price', 'modalPrice', 'price', 'Price'])
+  const modalPrice = parseNumeric(
+    readField(record, ['modal_price', 'Modal_Price', 'modalPrice', 'Modal_x0020_Price', 'price', 'Price'])
+  )
+  const minPrice = parseNumeric(
+    readField(record, ['min_price', 'Min_Price', 'Min_x0020_Price', 'minPrice'])
+  )
+  const maxPrice = parseNumeric(
+    readField(record, ['max_price', 'Max_Price', 'Max_x0020_Price', 'maxPrice'])
   )
   const updatedAt = parseDateIso(
     readField(record, ['arrival_date', 'Arrival_Date', 'date', 'updated_at', 'updatedAt'])
   )
 
-  if (!commodity || !mandi || price <= 0) return null
+  // Use modal_price as primary, fall back to average of min/max
+  const effectivePrice = modalPrice > 0 ? modalPrice : (minPrice + maxPrice) / 2
+
+  if (!commodity || !mandi || effectivePrice <= 0) return null
 
   return {
     commodity,
     mandi,
+    district,
     state,
-    pricePerQuintal: price,
+    pricePerQuintal: effectivePrice,
+    minPrice: minPrice > 0 ? minPrice : effectivePrice,
+    maxPrice: maxPrice > 0 ? maxPrice : effectivePrice,
     updatedAt,
   }
 }
@@ -72,13 +106,14 @@ const getTrendFromPrices = (latest: number, previous?: number) => {
   return { trend: 'stable' as const, trendPercent, color: 'yellow' as const }
 }
 
-const buildPrices = (records: AgmarknetRecord[], mandiFilter?: string): MarketPrice[] => {
+const buildPrices = (records: AgmarknetRecord[], commodityFilter?: string, mandiFilter?: string): MarketPrice[] => {
   const normalized = records
     .map(normalizeRecord)
     .filter((entry): entry is NormalizedMandiRecord => Boolean(entry))
     .filter(entry => {
-      if (!mandiFilter) return true
-      return entry.mandi.toLowerCase().includes(mandiFilter.toLowerCase())
+      if (commodityFilter && !entry.commodity.toLowerCase().includes(commodityFilter.toLowerCase())) return false
+      if (mandiFilter && !entry.mandi.toLowerCase().includes(mandiFilter.toLowerCase())) return false
+      return true
     })
 
   const grouped = new Map<string, NormalizedMandiRecord[]>()
@@ -122,33 +157,77 @@ export const getMockMarketPrices = (): MarketPrice[] => [
   { id: '1', commodity: 'Tomato', mandi: 'Nashik', state: 'Maharashtra', pricePerQuintal: 1240, trend: 'up', trendPercent: 8, updatedAt: new Date().toISOString(), color: 'green' },
   { id: '2', commodity: 'Onion', mandi: 'Lasalgaon', state: 'Maharashtra', pricePerQuintal: 890, trend: 'down', trendPercent: -5, updatedAt: new Date().toISOString(), color: 'red' },
   { id: '3', commodity: 'Wheat', mandi: 'Delhi', state: 'Delhi', pricePerQuintal: 2150, trend: 'stable', trendPercent: 0, updatedAt: new Date().toISOString(), color: 'yellow' },
-  { id: '4', commodity: 'Potato', mandi: 'Agra', state: 'UP', pricePerQuintal: 680, trend: 'up', trendPercent: 3, updatedAt: new Date().toISOString(), color: 'green' },
-  { id: '5', commodity: 'Soybean', mandi: 'Indore', state: 'MP', pricePerQuintal: 4200, trend: 'down', trendPercent: -2, updatedAt: new Date().toISOString(), color: 'red' },
+  { id: '4', commodity: 'Potato', mandi: 'Agra', state: 'Uttar Pradesh', pricePerQuintal: 680, trend: 'up', trendPercent: 3, updatedAt: new Date().toISOString(), color: 'green' },
+  { id: '5', commodity: 'Soybean', mandi: 'Indore', state: 'Madhya Pradesh', pricePerQuintal: 4200, trend: 'down', trendPercent: -2, updatedAt: new Date().toISOString(), color: 'red' },
   { id: '6', commodity: 'Cotton', mandi: 'Nagpur', state: 'Maharashtra', pricePerQuintal: 6800, trend: 'up', trendPercent: 5, updatedAt: new Date().toISOString(), color: 'green' },
   { id: '7', commodity: 'Rice', mandi: 'Kolkata', state: 'West Bengal', pricePerQuintal: 1950, trend: 'stable', trendPercent: 0, updatedAt: new Date().toISOString(), color: 'yellow' },
   { id: '8', commodity: 'Maize', mandi: 'Pune', state: 'Maharashtra', pricePerQuintal: 1380, trend: 'up', trendPercent: 4, updatedAt: new Date().toISOString(), color: 'green' },
 ]
 
-export const fetchMarketPrices = async (mandi?: string): Promise<MarketPrice[]> => {
-  if (!hasLiveMarketApi()) return getMockMarketPrices()
+export interface FetchMarketOptions {
+  commodity?: string
+  mandi?: string
+  state?: string
+  district?: string
+  limit?: number
+}
+
+export const fetchMarketPrices = async (mandiOrOptions?: string | FetchMarketOptions): Promise<MarketPrice[]> => {
+  // Backward compatible: accept string (mandi name) or options object
+  const opts: FetchMarketOptions = typeof mandiOrOptions === 'string'
+    ? { mandi: mandiOrOptions }
+    : mandiOrOptions ?? {}
+
+  if (!hasLiveMarketApi()) {
+    console.info('[Market] No Agmarknet API key — using demo data.')
+    return getMockMarketPrices()
+  }
 
   const endpoint = `${env.agmarknetBaseUrl.replace(/\/$/, '')}/${env.agmarknetResourceId}`
 
   try {
-    const { data } = await apiClient.get<AgmarknetResponse>(endpoint, {
-      params: {
-        'api-key': env.agmarknetApiKey,
-        format: 'json',
-        limit: env.agmarknetLimit,
-        ...(mandi ? { 'filters[market]': mandi } : {}),
-      },
-    })
+    const params: Record<string, string | number> = {
+      'api-key': env.agmarknetApiKey,
+      format: 'json',
+      limit: opts.limit ?? env.agmarknetLimit,
+    }
 
-    const prices = buildPrices(data.records ?? [], mandi)
-    return prices.length ? prices : getMockMarketPrices()
+    // Agmarknet uses filters[field_name] syntax for filtering
+    if (opts.commodity) params['filters[commodity]'] = opts.commodity
+    if (opts.state) params['filters[state]'] = opts.state
+    if (opts.district) params['filters[district]'] = opts.district
+    if (opts.mandi) params['filters[market]'] = opts.mandi
+
+    const { data } = await apiClient.get<AgmarknetResponse>(endpoint, { params })
+
+    const prices = buildPrices(data.records ?? [], opts.commodity, opts.mandi)
+
+    if (!prices.length) {
+      console.warn(`[Market] Agmarknet returned ${data.records?.length ?? 0} records but 0 parsed to valid prices. Check field mapping.`)
+      return getMockMarketPrices()
+    }
+
+    return prices
   } catch (error) {
     console.warn('[Market] Live Agmarknet fetch failed, using fallback data.', error)
     return getMockMarketPrices()
   }
 }
 
+/**
+ * Fetch price comparison for a specific commodity across mandis in a state.
+ * Returns prices from different mandis for the same commodity — used for
+ * the "nearby mandi comparison" feature.
+ */
+export const fetchCommodityComparison = async (
+  commodity: string,
+  state?: string
+): Promise<MarketPrice[]> => {
+  if (!hasLiveMarketApi()) return getMockMarketPrices().filter(p => p.commodity.toLowerCase().includes(commodity.toLowerCase()))
+
+  return fetchMarketPrices({
+    commodity,
+    state,
+    limit: 100,
+  })
+}

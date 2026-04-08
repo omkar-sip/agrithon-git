@@ -1,34 +1,97 @@
-// src/store/useLanguageStore.ts
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import i18n, {
+  changeAppLanguage,
+  DEFAULT_LANGUAGE,
+  normalizeSupportedLanguage,
+} from '../i18n'
+import {
+  LANGUAGE_META,
+  SUPPORTED_LANGUAGES,
+  type SupportedLanguage,
+} from '../i18n/languages'
+import { createUserProfilePayload, saveFarmerProfile } from '../services/firebase/firestoreService'
+import { useAuthStore } from './useAuthStore'
 
-export type SupportedLanguage = 'en' | 'hi' | 'kn' | 'bn' | 'ta' | 'pa'
+export { DEFAULT_LANGUAGE, LANGUAGE_META, SUPPORTED_LANGUAGES }
+export type { SupportedLanguage }
 
-export const LANGUAGE_META: Record<SupportedLanguage, {
-  nativeName: string
-  englishName: string
-  flag: string
-  script: string
-}> = {
-  en: { nativeName: 'English',   englishName: 'English',  flag: '🇮🇳', script: 'latin' },
-  hi: { nativeName: 'हिंदी',     englishName: 'Hindi',    flag: '🇮🇳', script: 'devanagari' },
-  kn: { nativeName: 'ಕನ್ನಡ',    englishName: 'Kannada',  flag: '🇮🇳', script: 'kannada' },
-  bn: { nativeName: 'বাংলা',     englishName: 'Bengali',  flag: '🇮🇳', script: 'bengali' },
-  ta: { nativeName: 'தமிழ்',     englishName: 'Tamil',    flag: '🇮🇳', script: 'tamil' },
-  pa: { nativeName: 'ਪੰਜਾਬੀ',   englishName: 'Punjabi',  flag: '🇮🇳', script: 'gurmukhi' },
+type SetLanguageOptions = {
+  persistToProfile?: boolean
 }
 
 interface LanguageState {
   language: SupportedLanguage
-  setLanguage: (lang: SupportedLanguage) => void
+  isChangingLanguage: boolean
+  setLanguage: (lang: SupportedLanguage, options?: SetLanguageOptions) => Promise<void>
+  hydrateLanguage: (lang: string) => void
 }
+
+const syncLanguageToProfile = async (language: SupportedLanguage) => {
+  const { farmer, authProvider, isAuthenticated, isProfileComplete, setFarmer } = useAuthStore.getState()
+  if (!isAuthenticated || !farmer?.uid || farmer.uid === 'local') return
+
+  await saveFarmerProfile(
+    farmer.uid,
+    createUserProfilePayload(
+      {
+        ...farmer,
+        language,
+      },
+      {
+        provider: authProvider,
+        isProfileComplete,
+      }
+    )
+  )
+
+  if (isProfileComplete) {
+    setFarmer({ language })
+  }
+}
+
+const getInitialLanguage = (): SupportedLanguage =>
+  normalizeSupportedLanguage(i18n.resolvedLanguage || i18n.language || DEFAULT_LANGUAGE)
 
 export const useLanguageStore = create<LanguageState>()(
   persist(
     (set) => ({
-      language: 'hi', // default Hindi
-      setLanguage: (language) => set({ language }),
+      language: getInitialLanguage(),
+      isChangingLanguage: false,
+      setLanguage: async (language, options) => {
+        const nextLanguage = normalizeSupportedLanguage(language)
+        set((state) =>
+          state.language === nextLanguage
+            ? { isChangingLanguage: false }
+            : { isChangingLanguage: true }
+        )
+
+        try {
+          await changeAppLanguage(nextLanguage)
+          set({ language: nextLanguage, isChangingLanguage: false })
+
+          if (options?.persistToProfile !== false) {
+            await syncLanguageToProfile(nextLanguage)
+          }
+        } catch (error) {
+          set({ isChangingLanguage: false })
+          throw error
+        }
+      },
+      hydrateLanguage: (language) => {
+        const nextLanguage = normalizeSupportedLanguage(language)
+        void changeAppLanguage(nextLanguage)
+        set({ language: nextLanguage, isChangingLanguage: false })
+      },
     }),
-    { name: 'sarpanch-language' }
+    {
+      name: 'sarpanch-language',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ language: state.language }),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.language) return
+        state.hydrateLanguage(state.language)
+      },
+    }
   )
 )

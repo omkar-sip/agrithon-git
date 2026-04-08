@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function creating() {
+      return resource == null;
+    }
+
+    function userPayloadValid() {
+      return request.resource.data.uid == request.auth.uid
+        && (!('email' in request.resource.data) || request.resource.data.email is string || request.resource.data.email == null)
+        && (!('phone' in request.resource.data) || request.resource.data.phone is string || request.resource.data.phone == null)
+        && (!('photoURL' in request.resource.data) || request.resource.data.photoURL is string || request.resource.data.photoURL == null)
+        && (!('name' in request.resource.data) || request.resource.data.name is string)
+        && (!('state' in request.resource.data) || request.resource.data.state is string)
+        && (!('district' in request.resource.data) || request.resource.data.district is string)
+        && (!('village' in request.resource.data) || request.resource.data.village is string)
+        && (!('language' in request.resource.data) || request.resource.data.language is string)
+        && (!('landHolding' in request.resource.data) || request.resource.data.landHolding in ['<1', '1-5', '5-10', '10+'])
+        && (!('waterSource' in request.resource.data) || request.resource.data.waterSource in ['rain-fed', 'irrigated', 'pond'])
+        && (!('category' in request.resource.data) || request.resource.data.category in ['crop', 'livestock', 'poultry', 'fishery'])
+        && (!('crops' in request.resource.data) || request.resource.data.crops is list)
+        && (!('coords' in request.resource.data) || request.resource.data.coords == null || (
+          request.resource.data.coords is map
+          && request.resource.data.coords.lat is number
+          && request.resource.data.coords.lon is number
+        ));
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && userPayloadValid();
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == resource.data.uid
+        && userPayloadValid();
+      allow delete: if false;
+    }
+
+    match /diary/{entryId} {
+      allow read: if signedIn() && resource.data.farmerId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.farmerId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && resource.data.farmerId == request.auth.uid
+        && request.resource.data.farmerId == resource.data.farmerId;
+    }
+
+    match /community/{reportId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && (
+          !('userId' in request.resource.data)
+          || request.resource.data.userId == request.auth.uid
+        )
+        && (
+          !('farmerId' in request.resource.data)
+          || request.resource.data.farmerId == request.auth.uid
+        );
+      allow update, delete: if signedIn()
+        && (
+          (resource.data.userId is string && resource.data.userId == request.auth.uid)
+          || (resource.data.farmerId is string && resource.data.farmerId == request.auth.uid)
+        );
+    }
+
+    match /alerts/{alertId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /mandiListings/{listingId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.farmerId == request.auth.uid
+        && request.resource.data.crop is string
+        && request.resource.data.quantity is number
+        && request.resource.data.price is number
+        && request.resource.data.mandiReferencePrice is number
+        && request.resource.data.location is string;
+      allow update, delete: if signedIn()
+        && resource.data.farmerId == request.auth.uid
+        && request.resource.data.farmerId == resource.data.farmerId;
+    }
+
+    match /soilReports/{reportId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.input is map
+        && request.resource.data.result is string;
+      allow update, delete: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /budgets/{budgetId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.crop is string
+        && request.resource.data.cost is number
+        && request.resource.data.revenue is number
+        && request.resource.data.profit is number;
+      allow update, delete: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /contracts/{contractId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.fileUrl is string
+        && request.resource.data.analysis is string;
+      allow update, delete: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /yojanas/{yojanaId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

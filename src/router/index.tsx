@@ -52,6 +52,8 @@ const SeaWeather       = lazy(() => import('../pages/fishery/SeaWeather'))
 // Community
 const Forum            = lazy(() => import('../pages/community/Forum'))
 const SarpanchGPT      = lazy(() => import('../pages/community/SarpanchGPT'))
+const KhetiKharcha     = lazy(() => import('../pages/tools/KhetiKharcha'))
+const SaudaSuraksha    = lazy(() => import('../pages/tools/SaudaSuraksha'))
 
 // === NEW PAGES ===
 const FieldManagement  = lazy(() => import('../pages/fields/FieldManagement'))
@@ -61,6 +63,7 @@ const Marketplace      = lazy(() => import('../pages/market/Marketplace'))
 const CropScanner      = lazy(() => import('../pages/scanner/CropScanner'))
 const FarmRentalHome   = lazy(() => import('../pages/farm-rental/FarmRentalHome'))
 const FarmRentalCategory = lazy(() => import('../pages/farm-rental/FarmRentalCategory'))
+const ServiceDetail      = lazy(() => import('../pages/farm-rental/ServiceDetail'))
 
 // ─── Loading fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -84,6 +87,7 @@ const router = createBrowserRouter([
   { path: '/login',        element: <Login /> },
   { path: '/profile',      element: <S><Profile /></S> },
   { path: '/sarpanchgpt',  element: <S><SarpanchGPT /></S> },
+  { path: '/sarpanch-salah', element: <S><SarpanchGPT /></S> },
   { path: '/scanner',      element: <S><CropScanner /></S> },
 
   // ── Standalone new pages ──────────────────────────────────────────────────
@@ -105,7 +109,12 @@ const router = createBrowserRouter([
 
       // Marketplace
       { path: 'marketplace',     element: <S><Marketplace /></S> },
+      { path: 'mitti-sehat',     element: <S><SoilHealth /></S> },
+      { path: 'kheti-kharcha',   element: <S><KhetiKharcha /></S> },
+      { path: 'sauda-suraksha',  element: <S><SaudaSuraksha /></S> },
+      { path: 'sarkari-yojana',  element: <S><SchemesBenefits /></S> },
       { path: 'farm-rental',     element: <S><FarmRentalHome /></S> },
+      { path: 'farm-rental/service/:id', element: <S><ServiceDetail /></S> },
       { path: 'farm-rental/:categoryId', element: <S><FarmRentalCategory /></S> },
 
       // Crop farming

@@ -325,6 +325,18 @@ ${text}`
     : new Error('Gemini request failed for all configured text models.')
 }
 
+export async function generateAiText(params: {
+  systemPrompt: string
+  userMessage: string
+  history?: Array<{ role: 'user' | 'model'; content: string }>
+  model?: string | string[]
+}): Promise<string> {
+  return generate(params.systemPrompt, params.userMessage, {
+    history: params.history,
+    model: params.model,
+  })
+}
+
 // ─── Mock fallback (dev without API key) ────────────────────────────────────
 function getMockResponse(context: string): string {
   return `[Mock Response] Gemini would answer: "${context.slice(0, 80)}..." — Add VITE_GEMINI_API_KEY to enable real AI.`

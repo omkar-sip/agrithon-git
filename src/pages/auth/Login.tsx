@@ -12,7 +12,13 @@ import {
   type ConfirmationResult,
 } from 'firebase/auth'
 import { auth, googleProvider } from '../../services/firebase/firebaseConfig'
+import { apiAvailability } from '../../config/env'
+import {
+  createUserProfilePayload,
+  saveFarmerProfile,
+} from '../../services/firebase/firestoreService'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useLanguageStore } from '../../store/useLanguageStore'
 import toast from 'react-hot-toast'
 
 type Screen = 'main' | 'email' | 'phone' | 'otp'
@@ -57,6 +63,32 @@ export default function Login() {
 
   const clearError = () => setError('')
 
+  const persistUserRecord = async (params: {
+    uid: string
+    name: string
+    email?: string
+    phone?: string
+    photoURL?: string
+    provider: 'google' | 'email' | 'phone'
+  }) => {
+    if (!apiAvailability.hasFirebaseConfig) return
+
+    await saveFarmerProfile(
+      params.uid,
+      createUserProfilePayload(
+        {
+          uid: params.uid,
+          name: params.name,
+          email: params.email,
+          phone: params.phone,
+          photoURL: params.photoURL,
+          language: useLanguageStore.getState().language,
+        },
+        { provider: params.provider, isProfileComplete: false }
+      )
+    )
+  }
+
   const handleFacebook = async () => {
     setLoading(true); clearError()
     setTimeout(() => {
@@ -76,6 +108,13 @@ export default function Login() {
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user
+      await persistUserRecord({
+        uid: user.uid,
+        name: user.displayName || 'Farmer',
+        email: user.email || undefined,
+        photoURL: user.photoURL || undefined,
+        provider: 'google',
+      })
       setAuthenticated({
         uid: user.uid,
         name: user.displayName || 'Farmer',
@@ -105,6 +144,12 @@ export default function Login() {
         const cred = await signInWithEmailAndPassword(auth, email, password)
         user = cred.user
       }
+      await persistUserRecord({
+        uid: user.uid,
+        name: user.displayName || email.split('@')[0],
+        email: user.email || undefined,
+        provider: 'email',
+      })
       setAuthenticated({
         uid: user.uid,
         name: user.displayName || email.split('@')[0],
@@ -142,6 +187,12 @@ export default function Login() {
     setLoading(true); clearError()
     try {
       const result = await confirmationResult.confirm(otp)
+      await persistUserRecord({
+        uid: result.user.uid,
+        name: 'Farmer',
+        phone,
+        provider: 'phone',
+      })
       setAuthenticated({ uid: result.user.uid, name: 'Farmer', phone, provider: 'phone' })
       toast.success('Phone verified!')
       navigate('/profile')

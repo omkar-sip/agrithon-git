@@ -40,6 +40,7 @@ export const env = {
   firebaseApiKey: readConfiguredEnv(import.meta.env.VITE_FIREBASE_API_KEY),
   firebaseAuthDomain: readConfiguredEnv(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
   firebaseProjectId: readConfiguredEnv(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  firebaseDatabaseId: readConfiguredEnv(import.meta.env.VITE_FIREBASE_DATABASE_ID),
   firebaseStorageBucket: readConfiguredEnv(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
   firebaseMessagingSenderId: readConfiguredEnv(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
   firebaseAppId: readConfiguredEnv(import.meta.env.VITE_FIREBASE_APP_ID),

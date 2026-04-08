@@ -2,6 +2,7 @@ import { addDays, format } from 'date-fns'
 import { apiClient } from './api'
 import type { ForecastDay, WeatherData } from '../store/useWeatherStore'
 import { env } from '../config/env'
+import { normalizeSupportedLanguage, type SupportedLanguage } from '../i18n'
 
 const API_KEY = env.openWeatherApiKey
 const WEATHER_BASE = 'https://api.openweathermap.org/data/2.5'
@@ -30,21 +31,6 @@ type OpenWeatherCurrentResponse = {
   wind?: { speed?: number }
   rain?: { '1h'?: number }
   clouds?: { all?: number }
-}
-
-type OneCallDailyEntry = {
-  dt: number
-  temp: { min: number; max: number }
-  humidity: number
-  wind_speed: number
-  pop?: number
-  rain?: number
-  weather: OpenWeatherWeather[]
-}
-
-type OneCallResponse = {
-  timezone?: string
-  daily?: OneCallDailyEntry[]
 }
 
 type ForecastListEntry = {
@@ -98,8 +84,37 @@ const getActionColorFromCondition = (condition: string, rainChance = 0, windSpee
   return 'green' as const
 }
 
-const getFallbackFarmAction = (condition: string, rainChance = 0, humidity = 0) => {
+const getLocalizedWeatherDescription = (icon: string, language: SupportedLanguage) => {
+  const dictionary: Record<SupportedLanguage, Record<string, string>> = {
+    en: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+    hi: { Clear: 'साफ आसमान', Clouds: 'बादल', Rain: 'बारिश', Drizzle: 'फुहार', Thunderstorm: 'आंधी', Snow: 'बर्फ', Mist: 'धुंध' },
+    kn: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+    mr: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+    te: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+    ta: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+    pa: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+    bn: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+    gu: { Clear: 'Clear sky', Clouds: 'Cloudy', Rain: 'Rain', Drizzle: 'Drizzle', Thunderstorm: 'Storm', Snow: 'Snow', Mist: 'Mist' },
+  }
+
+  return dictionary[language][icon] || dictionary[language].Clear
+}
+
+const getFallbackFarmAction = (
+  condition: string,
+  rainChance = 0,
+  humidity = 0,
+  language: SupportedLanguage = 'en'
+) => {
   const normalized = condition.toLowerCase()
+  if (language === 'hi') {
+    if (normalized.includes('thunderstorm')) return 'औजार सुरक्षित रखें और खुले खेत में स्प्रे न करें।'
+    if (normalized.includes('rain') || rainChance >= 0.6) return 'आज सिंचाई रोकें और निकासी नालियों की जांच करें।'
+    if (humidity >= 85) return 'शाम से पहले फफूंद के जोखिम के लिए फसल देखें।'
+    if (normalized.includes('clear')) return 'सूखे मौसम की इस खिड़की का उपयोग सिंचाई और स्प्रे के लिए करें।'
+    return 'खेत की नमी जांचें और तय किया हुआ काम सावधानी से जारी रखें।'
+  }
+
   if (normalized.includes('thunderstorm')) return 'Secure tools and avoid spraying in open fields.'
   if (normalized.includes('rain') || rainChance >= 0.6) return 'Pause irrigation and inspect drainage channels today.'
   if (humidity >= 85) return 'Scout crops for fungal pressure before sunset.'
@@ -107,47 +122,52 @@ const getFallbackFarmAction = (condition: string, rainChance = 0, humidity = 0) 
   return 'Check field moisture and continue planned farm work carefully.'
 }
 
-const buildMockForecast = (): ForecastDay[] =>
+const buildMockForecast = (language: SupportedLanguage = 'en'): ForecastDay[] =>
   Array.from({ length: 7 }, (_, index) => {
     const date = addDays(new Date(), index)
     return {
       date: format(date, 'yyyy-MM-dd'),
       tempMax: 33 - (index % 3),
       tempMin: 24 - (index % 2),
-      description: index % 3 === 1 ? 'Light rain' : 'Partly cloudy',
+      description: index % 3 === 1 ? (language === 'hi' ? 'हल्की बारिश' : 'Light rain') : (language === 'hi' ? 'आंशिक बादल' : 'Partly cloudy'),
       icon: index % 3 === 1 ? 'Rain' : 'Clouds',
       humidity: index % 3 === 1 ? 86 : 70,
       windSpeed: index % 2 === 0 ? 4.2 : 5.5,
       precipitationChance: index % 3 === 1 ? 0.7 : 0.2,
       rainfallMm: index % 3 === 1 ? 9 : 0,
       farmAction: index % 3 === 1
-        ? 'Delay irrigation and watch for standing water.'
-        : 'Good window for routine field operations.',
+        ? (language === 'hi' ? 'सिंचाई टालें और खेत में पानी जमा होने पर नजर रखें।' : 'Delay irrigation and watch for standing water.')
+        : (language === 'hi' ? 'सामान्य खेत कार्यों के लिए अच्छा समय है।' : 'Good window for routine field operations.'),
       actionColor: index % 3 === 1 ? 'yellow' : 'green',
     }
   })
 
 const hasApiKey = () => API_KEY.trim().length > 0
 
-export const getMockWeather = (): WeatherData => ({
+export const getMockWeather = (language: SupportedLanguage = 'en'): WeatherData => ({
   temp: 32,
   feelsLike: 35,
   humidity: 72,
-  description: 'Partly cloudy',
+  description: language === 'hi' ? 'आंशिक बादल' : 'Partly cloudy',
   icon: 'Clouds',
   windSpeed: 4.8,
-  location: 'Central India',
+  location: language === 'hi' ? 'मध्य भारत' : 'Central India',
   precipitationChance: 0.2,
   rainfallMm: 0,
 })
 
-export const getMockForecast = (): ForecastDay[] => buildMockForecast()
+export const getMockForecast = (language: SupportedLanguage = 'en'): ForecastDay[] => buildMockForecast(language)
 
-export const fetchCurrentWeather = async (lat: number, lon: number): Promise<WeatherData> => {
-  if (!hasApiKey()) return getMockWeather()
+export const fetchCurrentWeather = async (
+  lat: number,
+  lon: number,
+  languageInput: string = 'en'
+): Promise<WeatherData> => {
+  const language = normalizeSupportedLanguage(languageInput)
+  if (!hasApiKey()) return getMockWeather(language)
 
   const { data } = await apiClient.get<OpenWeatherCurrentResponse>(`${WEATHER_BASE}/weather`, {
-    params: { lat, lon, appid: API_KEY, units: 'metric' },
+    params: { lat, lon, appid: API_KEY, units: 'metric', lang: language },
   })
 
   const weather = getWeatherPrimary(data.weather)
@@ -156,41 +176,19 @@ export const fetchCurrentWeather = async (lat: number, lon: number): Promise<Wea
     temp: data.main.temp,
     feelsLike: data.main.feels_like,
     humidity: data.main.humidity,
-    description: weather?.description || 'Clear',
+    description: weather?.description || getLocalizedWeatherDescription(weather?.main || 'Clear', language),
     icon: weather?.main || 'Clear',
     windSpeed: data.wind?.speed ?? 0,
-    location: data.name || 'Your farm',
+    location: data.name || (language === 'hi' ? 'आपका खेत' : 'Your farm'),
     precipitationChance: (data.clouds?.all ?? 0) / 100,
     rainfallMm: data.rain?.['1h'] ?? 0,
   }
 }
 
-const mapDailyForecast = (daily: OneCallDailyEntry[]): ForecastDay[] =>
-  daily.slice(0, 7).map(entry => {
-    const weather = getWeatherPrimary(entry.weather)
-    const precipitationChance = entry.pop ?? 0
-    const actionColor = getActionColorFromCondition(
-      weather?.main || weather?.description || 'Clear',
-      precipitationChance,
-      entry.wind_speed
-    )
-
-    return {
-      date: format(new Date(entry.dt * 1000), 'yyyy-MM-dd'),
-      tempMax: entry.temp.max,
-      tempMin: entry.temp.min,
-      description: weather?.description || 'Clear sky',
-      icon: weather?.main || 'Clear',
-      humidity: entry.humidity,
-      windSpeed: entry.wind_speed,
-      precipitationChance,
-      rainfallMm: entry.rain ?? 0,
-      farmAction: getFallbackFarmAction(weather?.description || weather?.main || 'Clear', precipitationChance, entry.humidity),
-      actionColor,
-    }
-  })
-
-const mapThreeHourForecast = (entries: ForecastListEntry[]): ForecastDay[] => {
+const mapThreeHourForecast = (
+  entries: ForecastListEntry[],
+  language: SupportedLanguage
+): ForecastDay[] => {
   const grouped = new Map<string, ForecastListEntry[]>()
 
   entries.forEach(entry => {
@@ -228,36 +226,25 @@ const mapThreeHourForecast = (entries: ForecastListEntry[]): ForecastDay[] => {
         windSpeed,
         precipitationChance,
         rainfallMm: rainTotals,
-        farmAction: getFallbackFarmAction(condition, precipitationChance, humidity),
+        farmAction: getFallbackFarmAction(condition, precipitationChance, humidity, language),
         actionColor: getActionColorFromCondition(condition, precipitationChance, windSpeed),
       }
     })
 }
 
-export const fetchForecast = async (lat: number, lon: number): Promise<ForecastDay[]> => {
-  if (!hasApiKey()) return buildMockForecast()
-
-  try {
-    const { data } = await apiClient.get<OneCallResponse>('https://api.openweathermap.org/data/3.0/onecall', {
-      params: {
-        lat,
-        lon,
-        appid: API_KEY,
-        units: 'metric',
-        exclude: 'minutely,hourly,alerts',
-      },
-    })
-
-    if (data.daily?.length) return mapDailyForecast(data.daily)
-  } catch {
-    // Fall back to the 5-day / 3-hour forecast when One Call is unavailable for the key.
-  }
+export const fetchForecast = async (
+  lat: number,
+  lon: number,
+  languageInput: string = 'en'
+): Promise<ForecastDay[]> => {
+  const language = normalizeSupportedLanguage(languageInput)
+  if (!hasApiKey()) return buildMockForecast(language)
 
   const { data } = await apiClient.get<ForecastResponse>(`${WEATHER_BASE}/forecast`, {
-    params: { lat, lon, appid: API_KEY, units: 'metric' },
+    params: { lat, lon, appid: API_KEY, units: 'metric', lang: language },
   })
 
-  return mapThreeHourForecast(data.list)
+  return mapThreeHourForecast(data.list, language)
 }
 
 export const reverseGeocodeLocation = async (lat: number, lon: number): Promise<ReverseGeocodeResult> => {

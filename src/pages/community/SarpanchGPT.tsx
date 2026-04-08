@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, ChevronLeft, Keyboard, MicOff, Languages, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { chatWithSarpanch } from '../../services/gemini/geminiClient'
+import { askSarpanchSalah } from '../../services/ai'
 import { useLanguageStore, LANGUAGE_META, type SupportedLanguage } from '../../store/useLanguageStore'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useVoiceAgent } from '../../hooks/useVoiceAgent'
@@ -38,6 +38,18 @@ const QUICK_QUESTIONS: Record<SupportedLanguage, string[]> = {
     'ee vara maize yelli marata madodu better?',
     'drip irrigation subsidy ge yava yojane ide?',
   ],
+  mr: [
+    'gahuche paan pivali zali tar turt kay karu?',
+    'pudhil 3 divsat paus asel tar spray karu ka?',
+    'ya athavdyat makka viknyasathi changli mandi konti?',
+    'drip irrigation subsidy sathi konti yojana aahe?',
+  ],
+  te: [
+    'wheat lo aakulu pasupu ayite ventane em cheyyali?',
+    'mudu rojullo varsham unte spray cheyyala?',
+    'ee vaaram maize ammadaniki manchi mandi edi?',
+    'drip irrigation subsidy kosam e pathakam undi?',
+  ],
   bn: [
     'gom e holud pata hole ekhon ki korbo?',
     'agami 3 diner brishtite spray kora thik hobe?',
@@ -56,15 +68,24 @@ const QUICK_QUESTIONS: Record<SupportedLanguage, string[]> = {
     'is hafte makki bechan layi vadiya mandi kehri?',
     'drip irrigation subsidy layi kehri scheme hai?',
   ],
+  gu: [
+    'ghau ma peela pan aave to turant shu karvu?',
+    'aagal na 3 divas varsad hoy to spray karvu?',
+    'aa athvadiye makai vechva sauthi sari mandi kai?',
+    'drip irrigation subsidy mate kai yojana che?',
+  ],
 }
 
 const TIME_LOCALE: Record<SupportedLanguage, string> = {
   en: 'en-IN',
   hi: 'hi-IN',
   kn: 'kn-IN',
+  mr: 'mr-IN',
+  te: 'te-IN',
   bn: 'bn-IN',
   ta: 'ta-IN',
   pa: 'pa-IN',
+  gu: 'gu-IN',
 }
 
 const compactHistoryContent = (text: string): string => {
@@ -80,7 +101,7 @@ const toHistory = (messages: Message[]) =>
         !(
           index === 0 &&
           message.role === 'model' &&
-          message.content.includes('I am Sarpanch Ji, your voice-first farm advisor')
+          message.content.includes('I am Sarpanch Salah')
         )
     )
     .slice(-HISTORY_WINDOW)
@@ -113,10 +134,10 @@ export default function SarpanchGPT() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'model',
-      content: `Namaste${firstName ? `, ${firstName}` : ''}. I am Sarpanch Ji, your voice-first farm advisor.
+      content: `Namaste${firstName ? `, ${firstName}` : ''}. I am Sarpanch Salah.
 
-You can ask in your own language, including mixed local + English words.
-I will answer clearly and end every reply with one practical action for today.`,
+Ask in Hindi, Kannada, or your mixed local language.
+I will keep answers short, practical, and easy to act on.`,
       timestamp: new Date(),
     },
   ])
@@ -149,14 +170,6 @@ I will answer clearly and end every reply with one practical action for today.`,
       const normalizedQuestion = question.replace(/\s+/g, ' ').trim()
       if (!normalizedQuestion) return ''
 
-      const context = farmer
-        ? `Farmer profile: Name=${farmer.name}, District=${farmer.district || 'Unknown'}, State=${
-            farmer.state || 'Unknown'
-          }, Category=${farmer.category}, Land=${farmer.landHolding || 0} acres, Water=${
-            farmer.waterSource || 'Unknown'
-          }.`
-        : 'Farmer profile unavailable. Assume a smallholder farmer from India.'
-
       const cacheKey = `${language}|${farmer?.district || 'unknown'}|${farmer?.state || 'unknown'}|${normalizedQuestion.toLowerCase()}`
       const now = Date.now()
       const cached = responseCacheRef.current.get(cacheKey)
@@ -165,10 +178,10 @@ I will answer clearly and end every reply with one practical action for today.`,
       }
       if (cached) responseCacheRef.current.delete(cacheKey)
 
-      const response = await chatWithSarpanch({
+      const response = await askSarpanchSalah({
         question: normalizedQuestion,
-        farmerContext: context,
         language,
+        farmer,
         history: toHistory(messageSnapshot || messagesRef.current),
       })
 
@@ -232,7 +245,7 @@ I will answer clearly and end every reply with one practical action for today.`,
         }
       } catch (error) {
         const reason = getErrorMessage(error)
-        const fallback = `Connection issue while talking to Sarpanch Ji: ${reason}`
+        const fallback = `Connection issue while talking to Sarpanch Salah: ${reason}`
         setMessages(previous => [...previous, { role: 'model', content: fallback, timestamp: new Date() }])
         setVoiceError(`Network issue detected: ${reason}`)
       } finally {
@@ -278,11 +291,11 @@ I will answer clearly and end every reply with one practical action for today.`,
           </button>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-base leading-tight" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-              Sarpanch Ji
+              Sarpanch Salah
             </p>
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
-              <p className="text-brand-100 text-xs">{statusText} - AI Farm Advisor</p>
+              <p className="text-brand-100 text-xs">{statusText} - Voice Farm Advisor</p>
             </div>
           </div>
           <button
@@ -330,7 +343,7 @@ I will answer clearly and end every reply with one practical action for today.`,
               )}
               <div className="max-w-[85%]">
                 <div
-                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                      className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     message.role === 'user'
                       ? 'bg-brand-600 text-white rounded-br-sm'
                       : 'bg-white text-neutral-800 border border-neutral-200 shadow-card rounded-bl-sm'
@@ -474,7 +487,7 @@ I will answer clearly and end every reply with one practical action for today.`,
                   void sendMessage()
                 }
               }}
-              placeholder="Ask Sarpanch Ji about crop, weather, mandi, or schemes..."
+              placeholder="Ask Sarpanch Salah about crop, mandi, soil, or schemes..."
               className="flex-1 bg-neutral-50 border border-brand-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all"
             />
             <button

@@ -2,13 +2,15 @@
 
 This file is a lightweight path index to quickly locate code and reduce repeated repository scans.
 
-- Generated: 2026-04-08 20:44:39 +05:30
-- Root: D:\AGRITHON GIT
+- Generated: 2026-04-09 02.12.05 +05:30
+- Root: C:\Users\prati\AGRITHON\agrithon-git
 - Excluded directories: .git, .tmp, node_modules
 - Regenerate: powershell -ExecutionPolicy Bypass -File scripts/generate-codebase-tree.ps1
 
 ~~~text
 .
+|-- .firebase/
+|   \-- hosting.ZGlzdA.cache
 |-- dev-dist/
 |   |-- registerSW.js
 |   |-- sw.js
@@ -30,6 +32,34 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |           \-- Home.tsx
 |   \-- package.json
 |-- public/
+|   |-- assets/
+|   |   \-- images/
+|   |       \-- farm-rental/
+|   |           |-- drone.png
+|   |           |-- harvester.png
+|   |           |-- irrigation.png
+|   |           |-- labor.png
+|   |           |-- tractor.png
+|   |           \-- transport.png
+|   |-- locales/
+|   |   |-- bn/
+|   |   |   \-- translation.json
+|   |   |-- en/
+|   |   |   \-- translation.json
+|   |   |-- gu/
+|   |   |   \-- translation.json
+|   |   |-- hi/
+|   |   |   \-- translation.json
+|   |   |-- kn/
+|   |   |   \-- translation.json
+|   |   |-- mr/
+|   |   |   \-- translation.json
+|   |   |-- pa/
+|   |   |   \-- translation.json
+|   |   |-- ta/
+|   |   |   \-- translation.json
+|   |   \-- te/
+|   |       \-- translation.json
 |   |-- farmer-illustration.png
 |   |-- favicon.svg
 |   |-- icons.svg
@@ -51,11 +81,13 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |-- layout/
 |   |   |   |-- AppShell.tsx
 |   |   |   |-- BottomNav.tsx
+|   |   |   |-- GlobalHeader.tsx
 |   |   |   |-- PageTransition.tsx
 |   |   |   \-- TopBar.tsx
 |   |   |-- shared/
 |   |   |   |-- AlertBanner.tsx
 |   |   |   |-- BannerCarousel.tsx
+|   |   |   |-- FarmingCategorySelector.tsx
 |   |   |   |-- FarmLocationMap.tsx
 |   |   |   |-- MarketPriceCard.tsx
 |   |   |   \-- WeatherWidget.tsx
@@ -71,6 +103,7 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |-- config/
 |   |   \-- env.ts
 |   |-- hooks/
+|   |   |-- useFarmRental.ts
 |   |   |-- useGemini.ts
 |   |   |-- useGeolocation.ts
 |   |   |-- useOfflineSync.ts
@@ -85,7 +118,10 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |   |-- kn.json
 |   |   |   |-- pa.json
 |   |   |   \-- ta.json
-|   |   \-- index.ts
+|   |   |-- index.ts
+|   |   |-- languages.ts
+|   |   |-- react-i18next.d.ts
+|   |   \-- schema.ts
 |   |-- pages/
 |   |   |-- auth/
 |   |   |   |-- Login.tsx
@@ -104,11 +140,15 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |   |-- SupplyChain.tsx
 |   |   |   \-- WeatherAlerts.tsx
 |   |   |-- farm-rental/
+|   |   |   |-- BookingModal.tsx
 |   |   |   |-- FarmEquipmentCard.tsx
 |   |   |   |-- FarmRentalCategory.tsx
 |   |   |   |-- FarmRentalCategoryCard.tsx
 |   |   |   |-- farmRentalData.ts
-|   |   |   \-- FarmRentalHome.tsx
+|   |   |   |-- FarmRentalHome.tsx
+|   |   |   |-- FarmServiceCard.tsx
+|   |   |   |-- MyActivityOverlay.tsx
+|   |   |   \-- ServiceDetail.tsx
 |   |   |-- fields/
 |   |   |   |-- AddCrop.tsx
 |   |   |   |-- FieldManagement.tsx
@@ -142,20 +182,26 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |   \-- CropScanner.tsx
 |   |   |-- settings/
 |   |   |   \-- Settings.tsx
-|   |   \-- splash/
-|   |       |-- CategorySelect.tsx
-|   |       |-- LanguageSelect.tsx
-|   |       \-- SplashScreen.tsx
+|   |   |-- splash/
+|   |   |   |-- CategorySelect.tsx
+|   |   |   |-- LanguageSelect.tsx
+|   |   |   \-- SplashScreen.tsx
+|   |   \-- tools/
+|   |       |-- KhetiKharcha.tsx
+|   |       \-- SaudaSuraksha.tsx
 |   |-- router/
 |   |   \-- index.tsx
 |   |-- services/
 |   |   |-- firebase/
 |   |   |   |-- authService.ts
 |   |   |   |-- firebaseConfig.ts
-|   |   |   \-- firestoreService.ts
+|   |   |   |-- firestoreService.ts
+|   |   |   \-- storageService.ts
 |   |   |-- gemini/
 |   |   |   \-- geminiClient.ts
+|   |   |-- ai.ts
 |   |   |-- api.ts
+|   |   |-- mandi.ts
 |   |   |-- marketService.ts
 |   |   |-- messagingService.ts
 |   |   |-- notificationService.ts
@@ -165,7 +211,9 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |-- useAppStore.ts
 |   |   |-- useAuthStore.ts
 |   |   |-- useCategoryStore.ts
+|   |   |-- useFarmRentalStore.ts
 |   |   |-- useLanguageStore.ts
+|   |   |-- useLocationStore.ts
 |   |   |-- useMarketStore.ts
 |   |   |-- useTodaysPlanStore.ts
 |   |   \-- useWeatherStore.ts
@@ -187,16 +235,21 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |-- index.css
 |   \-- main.tsx
 |-- .env.example
+|-- .firebaserc
 |-- .gitignore
 |-- AGENTS.md
 |-- CODEBASE_TREE.md
 |-- eslint.config.js
+|-- final_implementations.md
+|-- firebase.json
+|-- firestore.rules
 |-- index.html
 |-- instructions__1_.md
 |-- package.json
 |-- package-lock.json
 |-- postcss.config.js
 |-- README.md
+|-- storage.rules
 |-- tailwind.config.ts
 |-- tsconfig.app.json
 |-- tsconfig.json

@@ -6,7 +6,7 @@ interface UseGeminiOptions { cacheKey?: string }
 
 export function useGemini<T = string>(
   geminiFn: (params: any) => Promise<T>,
-  options: UseGeminiOptions = {}
+  _options: UseGeminiOptions = {}
 ) {
   const [data, setData] = useState<T | null>(null)
   const [isLoading, setIsLoading] = useState(false)

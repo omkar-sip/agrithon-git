@@ -1,4 +1,4 @@
-import { BellRing, MapPin, Cloudy, Bug, TrendingUp, Landmark, SignalHigh, CheckCircle2 } from 'lucide-react'
+import { MapPin, Cloudy, Bug, TrendingUp, Landmark, SignalHigh, CheckCircle2 } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import toast from 'react-hot-toast'
 

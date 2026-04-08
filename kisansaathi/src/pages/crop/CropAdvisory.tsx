@@ -16,14 +16,12 @@ export default function CropAdvisory() {
   const [symptoms, setSymptoms] = useState('')
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
-  const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageBase64, setImageBase64] = useState<string>('')
   const [tab, setTab] = useState<'doctor' | 'calendar'>('doctor')
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setImageFile(file)
 
     const reader = new FileReader()
     reader.onloadend = () => {
@@ -85,7 +83,7 @@ export default function CropAdvisory() {
                {imageBase64 && (
                  <div className="mt-3 relative w-32 h-32 rounded-lg overflow-hidden border">
                    <img src={imageBase64} alt="Crop symptom" className="w-full h-full object-cover" />
-                   <button onClick={() => {setImageFile(null); setImageBase64('')}} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 text-xs">X</button>
+                   <button onClick={() => setImageBase64('')} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 text-xs">X</button>
                  </div>
                )}
 

@@ -1,7 +1,7 @@
 // src/components/ui/VoiceInputButton.tsx
 import { Mic, Square } from 'lucide-react'
 import { useVoiceInput } from '../../hooks/useVoiceInput'
-import { useLanguageStore, LANGUAGE_META } from '../../store/useLanguageStore'
+import { useLanguageStore } from '../../store/useLanguageStore'
 import clsx from 'clsx'
 
 interface VoiceInputButtonProps {

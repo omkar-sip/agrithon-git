@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, AlertTriangle, ThumbsUp, MapPin, MessageSquare, Flag, Clock } from 'lucide-react'
+import { AlertTriangle, ThumbsUp, MapPin, MessageSquare, Flag, Clock } from 'lucide-react'
 import Card from '../../components/ui/Card'
 import toast from 'react-hot-toast'
 

@@ -1,9 +1,9 @@
 // src/services/firebase/firestoreService.ts
 import {
-  doc, getDoc, setDoc, updateDoc, collection,
+  doc, getDoc, setDoc, collection,
   addDoc, query, where, orderBy, limit,
   onSnapshot, serverTimestamp, Timestamp,
-  type DocumentData, type QueryConstraint
+  type DocumentData
 } from 'firebase/firestore'
 import { db } from './firebaseConfig'
 

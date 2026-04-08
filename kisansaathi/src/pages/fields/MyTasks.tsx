@@ -1,49 +1,49 @@
-// src/pages/fields/MyTasks.tsx — task management matching reference
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Calendar, Trash2, Clock, CheckCircle2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronLeft, Calendar, Trash2, Clock, CheckCircle2, MoreVertical, MapPin, Bell, PenLine } from 'lucide-react'
 
 const TASKS = [
   {
     id: 1, title: 'Urea Fertilizer', crop: 'Wheat', field: 'North Fields',
     startTime: '12:00 PM', endTime: '1:00 PM', status: 'due',
     description: 'Check soil moisture before starting. Use drip irrigation system.',
-    icon: '🧪',
+    image: '/assets/images/market/urea.png',
   },
   {
     id: 2, title: 'Irrigation', crop: 'Wheat', field: 'North Fields',
     startTime: '9:00 AM', endTime: '11:00 AM', status: 'due',
     description: 'Check soil moisture before starting. Use drip irrigation system.',
-    icon: '💧',
+    image: '/assets/images/market/irrigation.png',
   },
   {
     id: 3, title: 'Pesticide Spray', crop: 'Groundnuts', field: 'South Fields',
     startTime: '7:00 AM', endTime: '8:30 AM', status: 'completed',
     description: 'Apply neem-based organic pesticide.',
-    icon: '🧴',
+    image: '/assets/images/market/pesticide.png',
   },
   {
     id: 4, title: 'Weeding', crop: 'Cotton', field: 'North Fields',
     startTime: '6:00 AM', endTime: '8:00 AM', status: 'overdue',
     description: 'Manual weeding required around cotton plants.',
-    icon: '🌱',
+    image: '/assets/images/crops/cotton.png',
   },
 ]
 
 const FILTERS = [
-  { label: 'Due', count: 3, key: 'due' },
-  { label: 'Completed', count: 2, key: 'completed' },
-  { label: 'Overdue', count: 1, key: 'overdue' },
+  { label: 'Due', key: 'due', color: 'bg-blue-600' },
+  { label: 'Completed', key: 'completed', color: 'bg-green-600' },
+  { label: 'Overdue', key: 'overdue', color: 'bg-red-600' },
 ]
-
-const today = new Date()
-const dayName = today.toLocaleDateString('en-IN', { weekday: 'long' })
-const dateStr = today.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 
 export default function MyTasks() {
   const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState('due')
   const [taskList, setTaskList] = useState(TASKS)
+
+  const today = new Date()
+  const dayName = today.toLocaleDateString('en-IN', { weekday: 'long' })
+  const dateStr = today.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 
   const filtered = taskList.filter(t => t.status === activeFilter)
 
@@ -52,113 +52,142 @@ export default function MyTasks() {
   }
 
   return (
-    <div className="page-root bg-neutral-50">
+    <div className="min-h-screen bg-[#FDFDFD] pb-32">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 bg-white border-b border-neutral-100 shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200">
-            <ChevronLeft size={20} className="text-neutral-600" />
-          </button>
-          <h1 className="text-lg font-bold text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-            My Task
-          </h1>
-        </div>
-        <button className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
-          <Calendar size={18} className="text-neutral-500" />
-        </button>
-      </div>
-
-      {/* Date card */}
-      <div className="mx-4 mt-4 bg-info-50 border border-info-100 rounded-xl px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-info-600" />
-          <span className="text-sm font-semibold text-info-900">{dayName}, {dateStr}</span>
-        </div>
-        <span className="text-sm font-bold text-neutral-700">29°C</span>
-      </div>
-
-      {/* Filter tabs */}
-      <div className="flex gap-2 px-4 mt-4 overflow-x-auto no-scrollbar">
-        {FILTERS.map(f => (
-          <button
-            key={f.key}
-            onClick={() => setActiveFilter(f.key)}
-            className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
-              activeFilter === f.key
-                ? 'bg-brand-600 text-white border-brand-600'
-                : 'bg-white text-neutral-600 border-neutral-200'
-            }`}
-          >
-            {f.label} ({taskList.filter(t => t.status === f.key).length})
-          </button>
-        ))}
-      </div>
-
-      {/* Task list */}
-      <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 space-y-3">
-        <p className="text-sm font-bold text-neutral-900 capitalize">{activeFilter} Tasks</p>
-
-        {filtered.length === 0 && (
-          <div className="text-center py-12">
-            <CheckCircle2 size={48} className="text-neutral-200 mx-auto mb-3" />
-            <p className="text-sm text-neutral-400">No {activeFilter} tasks</p>
-          </div>
-        )}
-
-        {filtered.map(task => (
-          <div key={task.id} className="bg-white border border-neutral-200 rounded-2xl shadow-card p-4 space-y-3">
-            {/* Task header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl select-none">{task.icon}</span>
-                <div>
-                  <p className="text-sm font-bold text-neutral-900">{task.title}</p>
-                  <p className="text-xs text-neutral-500">{task.crop} · {task.field}</p>
-                </div>
-              </div>
-              <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100">
-                <Trash2 size={14} className="text-neutral-400" />
+      <div className="bg-white px-5 pt-8 pb-32 border-b border-neutral-100 rounded-b-[3rem] relative z-10 shadow-sm">
+        <div className="max-w-2xl mx-auto space-y-8">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-4">
+               <button onClick={() => navigate(-1)} className="p-3 bg-neutral-100 rounded-2xl text-neutral-600 hover:bg-neutral-200 transition-all">
+                <ChevronLeft size={20} />
               </button>
-            </div>
-
-            {/* Times */}
-            <div className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <Clock size={13} className="text-neutral-400" />
-                <div>
-                  <p className="text-[10px] text-neutral-400 font-medium">Work Start</p>
-                  <p className="text-xs font-bold text-neutral-900">{task.startTime}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={13} className="text-neutral-400" />
-                <div>
-                  <p className="text-[10px] text-neutral-400 font-medium">Work End</p>
-                  <p className="text-xs font-bold text-neutral-900">{task.endTime}</p>
-                </div>
+              <div className="space-y-1">
+                <h1 className="text-3xl font-extrabold text-neutral-900 tracking-tight" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                  My Tasks
+                </h1>
+                <p className="text-neutral-500 text-sm font-medium">{dayName}, {dateStr}</p>
               </div>
             </div>
-
-            {/* Description */}
-            <p className="text-xs text-neutral-500 leading-relaxed">{task.description}</p>
-
-            {/* Actions */}
-            {task.status !== 'completed' && (
-              <div className="flex gap-3">
-                <button
-                  onClick={() => markDone(task.id)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 transition-colors active:scale-[0.98]"
-                >
-                  Mark Done
-                </button>
-                <button className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition-colors">
-                  Edit Task
-                </button>
-              </div>
-            )}
+            <button className="p-4 bg-neutral-100 rounded-2xl text-neutral-600 hover:bg-neutral-200 transition-all relative">
+              <Bell size={20} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />
+            </button>
           </div>
-        ))}
+
+          {/* Filter Chips */}
+          <div className="flex gap-3 overflow-x-auto no-scrollbar py-2">
+            {FILTERS.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setActiveFilter(f.key)}
+                className={`shrink-0 px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
+                  activeFilter === f.key
+                    ? `${f.color} text-white shadow-lg`
+                    : 'bg-white text-neutral-400 border border-neutral-100 hover:border-neutral-200 shadow-sm'
+                }`}
+              >
+                {f.label} ({taskList.filter(t => t.status === f.key).length})
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-5 -mt-20 relative z-20 space-y-6">
+        
+        {/* Task Cards */}
+        <AnimatePresence mode='popLayout'>
+          {filtered.length > 0 ? (
+            filtered.map((task, i) => (
+              <motion.div
+                key={task.id}
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-white rounded-[2.5rem] border border-neutral-100 shadow-sm overflow-hidden group hover:shadow-xl hover:shadow-neutral-100 transition-all duration-500"
+              >
+                <div className="p-6 space-y-5">
+                  <div className="flex justify-between items-start">
+                    <div className="flex gap-4 items-center">
+                      <div className="w-16 h-16 rounded-[1.5rem] overflow-hidden shadow-sm">
+                        <img src={task.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-extrabold text-neutral-900 leading-tight">{task.title}</h3>
+                        <div className="flex items-center gap-1.5 text-neutral-400 font-medium text-xs">
+                          <MapPin size={12} />
+                          <span>{task.field} • {task.crop}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button className="p-2 bg-neutral-50 rounded-xl text-neutral-300 hover:text-red-500 transition-colors">
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+
+                  {/* Times */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-neutral-50 p-4 rounded-2xl flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                        <Clock size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Start</p>
+                        <p className="text-sm font-black text-neutral-900">{task.startTime}</p>
+                      </div>
+                    </div>
+                    <div className="bg-neutral-50 p-4 rounded-2xl flex items-center gap-3">
+                      <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center">
+                        <Calendar size={16} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">End</p>
+                        <p className="text-sm font-black text-neutral-900">{task.endTime}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-neutral-500 leading-relaxed italic">"{task.description}"</p>
+
+                  <div className="flex gap-3 pt-2">
+                    {task.status !== 'completed' && (
+                      <button
+                        onClick={() => markDone(task.id)}
+                        className="flex-1 py-4 bg-neutral-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-neutral-800 transition-all active:scale-95 shadow-lg"
+                      >
+                        <CheckCircle2 size={20} />
+                        Mark Done
+                      </button>
+                    )}
+                    <button className="p-4 bg-neutral-100 text-neutral-600 rounded-2xl hover:bg-neutral-200 transition-all">
+                      <PenLine size={20} />
+                    </button>
+                    <button className="p-4 bg-neutral-100 text-neutral-600 rounded-2xl hover:bg-neutral-200 transition-all">
+                      <MoreVertical size={20} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              className="py-20 text-center space-y-6 bg-white rounded-[3rem] border border-dashed border-neutral-200"
+            >
+              <div className="w-20 h-20 bg-neutral-50 rounded-full flex items-center justify-center mx-auto text-neutral-200">
+                <CheckCircle2 size={40} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xl font-bold text-neutral-900">All caught up!</p>
+                <p className="text-neutral-500 text-sm">No {activeFilter} tasks for today.</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   )

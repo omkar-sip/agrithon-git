@@ -84,8 +84,28 @@
 @layer components {
 
   /* Page layout */
+  .app-stage {
+    @apply relative flex h-screen h-[100dvh] w-full justify-center overflow-hidden bg-neutral-100;
+  }
+
   .page-root {
     @apply flex flex-col bg-neutral-50 h-screen h-[100dvh] w-full overflow-hidden relative;
+  }
+
+  .app-shell-frame {
+    @apply relative h-screen h-[100dvh] max-w-[430px] bg-neutral-50;
+    border-left: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  }
+
+  @media (max-width: 480px) {
+    .app-shell-frame {
+      max-width: 100%;
+      border-left: 0;
+      border-right: 0;
+      box-shadow: none;
+    }
   }
 
   .page-container {
@@ -225,14 +245,13 @@
 
   /* ── Navigation — Bottom nav with center scanner button ──────────── */
   .bottom-nav {
-    @apply shrink-0 z-50 bg-white border-t border-neutral-200;
+    @apply z-50 shrink-0 border-t border-neutral-200 bg-white/95 backdrop-blur-md;
     padding-bottom: env(safe-area-inset-bottom);
     /* NOT fixed — sits in flexbox flow so content never goes behind it */
   }
 
   .bottom-nav-inner {
-    @apply flex items-stretch justify-around max-w-lg mx-auto relative;
-    height: 60px;
+    @apply relative mx-auto flex h-16 w-full items-stretch justify-around;
   }
 
   .bottom-nav-center {

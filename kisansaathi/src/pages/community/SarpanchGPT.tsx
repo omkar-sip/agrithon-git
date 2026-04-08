@@ -1,7 +1,7 @@
-// src/pages/community/SarpanchGPT.tsx — with full voice agent integration
+// src/pages/community/SarpanchGPT.tsx — Premium Polish
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, ChevronLeft, Keyboard, MicOff } from 'lucide-react'
+import { Send, ChevronLeft, Keyboard, MicOff, Star, Sparkles, MapPin, Quote } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { chatWithSarpanch } from '../../services/gemini/geminiClient'
 import { useLanguageStore } from '../../store/useLanguageStore'
@@ -16,10 +16,10 @@ interface Message {
 }
 
 const QUICK_QUESTIONS = [
-  'How do I remove aphids from wheat?',
-  'When does PM-KISAN payment come?',
-  'Crops to sow in June in Maharashtra?',
-  'Signs of low soil nitrogen?',
+  'How do I remove aphids from wheat? 🌾',
+  'When does PM-KISAN payment come? 💰',
+  'Crops to sow in June in Karnataka? 🌱',
+  'Signs of low soil nitrogen? 🧪',
 ]
 
 export default function SarpanchGPT() {
@@ -30,7 +30,7 @@ export default function SarpanchGPT() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'model',
-      content: `Hello${farmer?.name ? ', ' + farmer.name.split(' ')[0] : ''}! I'm Sarpanch AI — your personal farming advisor.\n\nAsk me anything about crops, weather, market prices, or government schemes. You can also tap the mic button and speak your question.`,
+      content: `Hello${farmer?.name ? ', ' + farmer.name.split(' ')[0] : ''}! I'm Sarpanch AI — your premium agricultural advisor.\n\nI can help you with crop disease diagnosis, market trends, and maximizing your yield. Tap the mic to speak or type your query below.`,
       timestamp: new Date(),
     }
   ])
@@ -44,7 +44,6 @@ export default function SarpanchGPT() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // ── AI function ────────────────────────────────────────────────────
   const askAI = useCallback(async (question: string): Promise<string> => {
     const ctx = farmer
       ? `Farmer profile: Name=${farmer.name}, Location=${farmer.district || 'India'}, ${farmer.state || ''}, Category=${farmer.category}, Land=${farmer.landHolding} acres, Water=${farmer.waterSource}.`
@@ -52,7 +51,6 @@ export default function SarpanchGPT() {
     return chatWithSarpanch({ question, farmerContext: ctx, language })
   }, [farmer, language])
 
-  // ── Voice agent ────────────────────────────────────────────────────
   const voiceAgent = useVoiceAgent(askAI, {
     onTranscript: (text) => setInput(text),
     onResponse: (text) => {
@@ -62,7 +60,6 @@ export default function SarpanchGPT() {
       ])
     },
     onStateChange: (s) => {
-      // When voice picks up transcript → show as user message
       if (s === 'processing' && voiceAgent.transcript) {
         setMessages(m => [...m, { role: 'user', content: voiceAgent.transcript, timestamp: new Date() }])
         setInput('')
@@ -70,7 +67,6 @@ export default function SarpanchGPT() {
     }
   })
 
-  // ── Text send ──────────────────────────────────────────────────────
   const handleSend = async (text?: string) => {
     const q = (text || input).trim()
     if (!q) return
@@ -88,178 +84,142 @@ export default function SarpanchGPT() {
   const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] bg-neutral-50 overflow-hidden relative">
+    <div className="flex flex-col h-screen h-[100dvh] bg-[#FDFDFD] overflow-hidden relative">
 
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="bg-forest-900 text-white flex-shrink-0"
+      {/* ── Fixed Header ────────────────────────────────────────── */}
+      <div className="absolute top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-2xl border-b border-neutral-100/50"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="flex items-center gap-3 px-4 h-14 max-w-2xl mx-auto">
+        <div className="flex items-center gap-4 px-6 h-16 max-w-3xl mx-auto">
           <button onClick={() => navigate(-1)}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
-            <ChevronLeft size={20} />
+            className="w-11 h-11 flex items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600 hover:bg-neutral-200 transition-all active:scale-90">
+            <ChevronLeft size={24} />
           </button>
-          <div className="flex-1">
-            <p className="font-bold text-base leading-tight" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-              Sarpanch AI
-            </p>
-            <div className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${voiceAgent.isListening ? 'bg-danger-400' :
-                  voiceAgent.isProcessing ? 'bg-gold-400 animate-pulse' :
-                    voiceAgent.isSpeaking ? 'bg-info-400 animate-pulse' :
-                      'bg-success-400'
-                }`} />
-              <p className="text-forest-300 text-xs">
-                {voiceAgent.isListening ? 'Listening...' :
-                  voiceAgent.isProcessing ? 'Thinking...' :
-                    voiceAgent.isSpeaking ? 'Speaking...' :
-                      'Online · AI Advisor'}
+          <div className="flex-1 flex items-center gap-3">
+            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white shadow-lg border border-white/20">
+               <Sparkles size={20} fill="white" />
+            </div>
+            <div>
+               <p className="font-extrabold text-lg leading-none text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                Sarpanch AI
               </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                 <div className={`w-1.5 h-1.5 rounded-full ${voiceAgent.isListening || voiceAgent.isSpeaking || voiceAgent.isProcessing ? 'bg-orange-500 animate-pulse' : 'bg-green-500'}`} />
+                 <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest leading-none">
+                    {voiceAgent.isListening ? 'Listening...' : voiceAgent.isSpeaking ? 'Speaking...' : 'Ready to help'}
+                 </p>
+              </div>
             </div>
           </div>
-          {/* Mode toggle */}
           <button
             onClick={() => { setMode(m => m === 'voice' ? 'text' : 'voice'); voiceAgent.stopAll() }}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-            title={mode === 'voice' ? 'Switch to text mode' : 'Switch to voice mode'}
+            className="w-11 h-11 flex items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600 hover:bg-neutral-200 transition-all active:scale-95"
           >
-            {mode === 'voice' ? <Keyboard size={18} /> : <MicOff size={18} />}
+            {mode === 'voice' ? <Keyboard size={20} /> : <MicOff size={20} />}
           </button>
         </div>
       </div>
 
-      {/* ── Messages ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-4 no-scrollbar max-w-2xl mx-auto w-full">
+      {/* ── Chat Canvas ─────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 pt-24 pb-4 space-y-6 no-scrollbar max-w-3xl mx-auto w-full">
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} gap-2`}
+              initial={{ opacity: 0, y: 12, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {msg.role === 'model' && (
-                <div className="w-8 h-8 rounded-full bg-forest-900 flex items-center justify-center text-sm shrink-0 mt-1 select-none">
-                  🌾
-                </div>
-              )}
-              <div className="max-w-[82%]">
-                <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
-                    ? 'bg-forest-900 text-white rounded-br-sm'
-                    : 'bg-white text-neutral-800 border border-neutral-200 shadow-card rounded-bl-sm'
+              <div className={`max-w-[85%] space-y-1 ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                <div className={`px-5 py-4 rounded-[2rem] text-[15px] leading-relaxed shadow-sm border ${msg.role === 'user'
+                    ? 'bg-neutral-900 text-white border-neutral-800 rounded-br-sm'
+                    : 'bg-white text-neutral-800 border-neutral-100 rounded-bl-sm'
                   }`}>
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <p className="whitespace-pre-wrap font-medium">{msg.content}</p>
                 </div>
-                <p className="text-[11px] text-neutral-400 mt-1 px-1">
-                  {formatTime(msg.timestamp)}
-                </p>
+                <div className="flex items-center gap-1.5 px-3">
+                   <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter">
+                     {formatTime(msg.timestamp)}
+                   </p>
+                   {msg.role === 'model' && <Star size={10} className="text-orange-400 fill-orange-400" />}
+                </div>
               </div>
             </motion.div>
           ))}
 
           {/* Typing indicator */}
           {(loading || voiceAgent.isProcessing) && (
-            <motion.div key="typing"
-              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              className="flex justify-start gap-2"
-            >
-              <div className="w-8 h-8 rounded-full bg-forest-900 flex items-center justify-center text-sm select-none shrink-0 mt-1">🌾</div>
-              <div className="bg-white border border-neutral-200 shadow-card rounded-2xl rounded-bl-sm px-4 py-3">
-                <div className="flex gap-1 items-center h-5">
-                  {[0, 1, 2].map(i => (
-                    <motion.div key={i}
-                      className="w-2 h-2 bg-neutral-300 rounded-full"
-                      animate={{ opacity: [0.4, 1, 0.4], y: [0, -3, 0] }}
-                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.18 }}
-                    />
-                  ))}
-                </div>
-              </div>
+            <motion.div key="typing" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
+               <div className="bg-white border border-neutral-100 shadow-sm rounded-[2rem] rounded-bl-sm px-6 py-4">
+                 <div className="flex gap-1.5 items-center h-4">
+                   {[0, 1, 2].map(i => (
+                     <motion.div key={i} className="w-2 h-2 bg-neutral-200 rounded-full" animate={{ opacity: [0.4, 1, 0.4], y: [0, -4, 0] }} transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.18 }} />
+                   ))}
+                 </div>
+               </div>
             </motion.div>
           )}
         </AnimatePresence>
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-20" />
       </div>
 
-      {/* ── Voice mode ───────────────────────────────────────────── */}
-      {mode === 'voice' && (
-        <div className="flex-shrink-0 bg-white border-t border-neutral-200 pb-safe-bottom"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
-
-          {/* Quick questions (shown when idle) */}
-          {voiceAgent.state === 'idle' && messages.length <= 1 && (
-            <div className="px-4 pt-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
+      {/* ── Control Center ────────────────────────────────────────── */}
+      <div className="flex-shrink-0 bg-white border-t border-neutral-100 drop-shadow-2xl">
+        
+        {/* Quick Questions (Dynamic) */}
+        {messages.length <= 1 && (
+            <div className="px-6 py-4 flex gap-2 overflow-x-auto no-scrollbar border-b border-neutral-50 bg-neutral-50/50">
               {QUICK_QUESTIONS.map(q => (
                 <button key={q} onClick={() => handleSend(q)}
-                  className="bg-neutral-100 text-neutral-700 border border-neutral-200 rounded-full px-3 py-2 text-xs font-medium shrink-0 hover:bg-neutral-200 transition-colors">
+                  className="bg-white text-neutral-700 border border-neutral-100 rounded-2xl px-5 py-3 text-xs font-bold shrink-0 hover:bg-neutral-50 transition-all active:scale-95 shadow-sm">
                   {q}
                 </button>
               ))}
             </div>
-          )}
+        )}
 
-          {/* Transcript preview */}
-          {voiceAgent.transcript && (
-            <div className="mx-4 mt-3 bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-2 text-sm text-neutral-600 italic">
-              "{voiceAgent.transcript}"
-            </div>
-          )}
-
-          {/* Voice orb centered */}
-          <div className="flex justify-center py-5">
-            <VoiceOrb
-              state={voiceAgent.state}
-              onPress={voiceAgent.startListening}
-              size="lg"
-            />
+        {/* Action Area */}
+        {mode === 'voice' ? (
+          <div className="p-8 pb-10 flex flex-col items-center gap-6">
+             {voiceAgent.transcript && (
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="px-6 py-3 bg-neutral-100 rounded-2xl text-sm text-neutral-500 font-bold italic border border-neutral-200/50 text-center">
+                   "{voiceAgent.transcript}"
+                </motion.div>
+             )}
+             <VoiceOrb state={voiceAgent.state} onPress={voiceAgent.startListening} size="lg" />
+             <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+                {voiceAgent.state === 'idle' ? 'Tap to speak' : voiceAgent.state === 'listening' ? 'Listening...' : 'Thinking...'}
+             </p>
           </div>
-
-          {/* Text fallback link */}
-          <p className="text-center text-xs text-neutral-400 pb-2">
-            Or{' '}
-            <button onClick={() => setMode('text')} className="text-forest-700 font-medium underline underline-offset-2">
-              type your question
-            </button>
-          </p>
-        </div>
-      )}
-
-      {/* ── Text mode ────────────────────────────────────────────── */}
-      {mode === 'text' && (
-        <div className="flex-shrink-0 bg-white border-t border-neutral-200 px-4 py-3 max-w-2xl mx-auto w-full"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-
-          {/* Quick questions */}
-          {messages.length <= 1 && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2">
-              {QUICK_QUESTIONS.map(q => (
-                <button key={q} onClick={() => handleSend(q)}
-                  className="bg-neutral-100 text-neutral-700 border border-neutral-200 rounded-full px-3 py-1.5 text-xs font-medium shrink-0 hover:bg-neutral-200 transition-colors">
-                  {q}
-                </button>
-              ))}
+        ) : (
+          <div className="px-6 py-5 max-w-3xl mx-auto w-full flex gap-3 items-end">
+            <div className="flex-1 bg-neutral-100 rounded-3xl border border-neutral-200/50 focus-within:border-brand-600 focus-within:ring-4 focus-within:ring-brand-500/10 transition-all p-2">
+               <textarea
+                  ref={inputRef as any}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !loading && handleSend()}
+                  placeholder="Ask about crops, weather, mandi..."
+                  rows={2}
+                  className="w-full bg-transparent border-none px-4 py-2 text-sm text-neutral-900 font-bold outline-none resize-none"
+               />
             </div>
-          )}
-
-          <div className="flex gap-2 items-end">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !loading && handleSend()}
-              placeholder="Ask about crops, weather, market..."
-              className="flex-1 bg-neutral-100 border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 outline-none focus:border-forest-600 focus:ring-2 focus:ring-forest-900/10 transition-all resize-none"
-            />
             <button
-              onClick={() => handleSend()}
-              disabled={loading || !input.trim()}
-              className="w-11 h-11 bg-forest-900 text-white rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+               onClick={() => handleSend()}
+               disabled={loading || !input.trim()}
+               className="w-14 h-14 bg-neutral-900 text-white rounded-3xl flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-90 transition-all shadow-xl"
             >
-              <Send size={16} />
+               <Send size={20} />
             </button>
           </div>
+        )}
+
+        {/* Global Motto Footer */}
+        <div className="px-8 pb-4 pt-2 text-center opacity-40">
+           <p className="text-[8px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2">
+              <Quote size={8} /> Unified Agricultural advisor platform without boundaries <Quote size={8} className="rotate-180" />
+           </p>
         </div>
-      )}
+      </div>
 
     </div>
   )

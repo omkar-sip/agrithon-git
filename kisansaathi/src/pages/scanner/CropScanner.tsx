@@ -1,8 +1,12 @@
-// src/pages/scanner/CropScanner.tsx — Crop Disease Detection with Gemini Vision
+// src/pages/scanner/CropScanner.tsx — Premium UI Upgrade
 import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Camera, Upload, X, Loader2, FileText, Share2, Download } from 'lucide-react'
+import { 
+  ChevronLeft, Camera, Upload, X, Loader2, 
+  FileText, Share2, Download, ShieldAlert, 
+  CheckCircle2, AlertCircle, ShoppingBag, MessageSquare
+} from 'lucide-react'
 import { analyzeCropImage } from '../../services/gemini/geminiClient'
 import { useLanguageStore } from '../../store/useLanguageStore'
 
@@ -62,7 +66,7 @@ export default function CropScanner() {
   }
 
   return (
-    <div className="page-root bg-neutral-900">
+    <div className="min-h-screen bg-neutral-900 flex flex-col overflow-hidden">
       {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
@@ -80,218 +84,243 @@ export default function CropScanner() {
         onChange={handleFileSelect}
       />
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 shrink-0">
+      {/* Header - Glassmorphic */}
+      <div className="relative z-10 flex items-center justify-between px-6 py-4 bg-black/20 backdrop-blur-xl border-b border-white/5">
         <button
           onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+          className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all active:scale-90"
         >
-          <ChevronLeft size={20} className="text-white" />
+          <ChevronLeft size={24} className="text-white" />
         </button>
-        <h1 className="text-lg font-bold text-white" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-          🔬 Crop Disease Scanner
+        <h1 className="text-xl font-bold text-white tracking-tight" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+          Crop Disease Scanner
         </h1>
-        <div className="w-10" />
+        <div className="w-11" />
       </div>
 
       <AnimatePresence mode="wait">
-
-        {/* ── Idle State — Camera viewfinder ──────────────────── */}
+        {/* ── Idle State ────────────────────────────────────────── */}
         {scanState === 'idle' && (
           <motion.div
             key="idle"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col items-center justify-center px-6"
+            className="flex-1 flex flex-col items-center justify-center px-6 relative"
           >
-            {/* Viewfinder */}
-            <div className="relative w-72 h-72 mb-8">
+            {/* Background Orb */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-brand-600/20 blur-[100px] rounded-full pointer-events-none" />
+
+            {/* Viewfinder - Premium Design */}
+            <div className="relative w-80 h-80 mb-12">
               {/* Corner brackets */}
-              <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-brand-500 rounded-tl-2xl" />
-              <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-brand-500 rounded-tr-2xl" />
-              <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-brand-500 rounded-bl-2xl" />
-              <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-brand-500 rounded-br-2xl" />
+              <div className="absolute top-0 left-0 w-16 h-16 border-t-[5px] border-l-[5px] border-brand-500 rounded-tl-[2.5rem]" />
+              <div className="absolute top-0 right-0 w-16 h-16 border-t-[5px] border-r-[5px] border-brand-500 rounded-tr-[2.5rem]" />
+              <div className="absolute bottom-0 left-0 w-16 h-16 border-b-[5px] border-l-[5px] border-brand-500 rounded-bl-[2.5rem]" />
+              <div className="absolute bottom-0 right-0 w-16 h-16 border-b-[5px] border-r-[5px] border-brand-500 rounded-br-[2.5rem]" />
 
-              {/* Scan line */}
-              <div className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-brand-500 to-transparent animate-scan-line" />
-
-              {/* Center icon */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <span className="text-6xl block mb-3">🌿</span>
-                  <p className="text-white/60 text-sm font-medium">Point camera at<br />affected crop</p>
+              <div className="absolute inset-4 border border-white/10 rounded-[2rem] overflow-hidden">
+                 {/* Moving Scan Line */}
+                <motion.div 
+                  className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-brand-400 to-transparent shadow-[0_0_15px_rgba(37,99,235,0.8)]"
+                  animate={{ top: ['0%', '100%', '0%'] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                />
+                
+                {/* Center Graphic */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20">
+                    <div className="w-20 h-20 bg-brand-600/30 rounded-full flex items-center justify-center mb-4">
+                       <Camera size={32} className="text-brand-400" />
+                    </div>
+                    <p className="text-white/60 text-xs font-bold uppercase tracking-[0.2em] text-center">
+                        Align Crop to Center
+                    </p>
                 </div>
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex gap-4 w-full max-w-xs">
+            {/* Action Buttons - Stacked & Mobile First */}
+            <div className="flex flex-col gap-4 w-full max-w-sm">
               <button
                 onClick={() => cameraInputRef.current?.click()}
-                className="flex-1 flex flex-col items-center gap-2 bg-brand-600 text-white rounded-2xl py-5 shadow-fab active:scale-95 transition-transform"
+                className="group relative flex items-center justify-center gap-4 bg-brand-600 text-white rounded-[2rem] py-6 shadow-2xl active:scale-95 transition-all overflow-hidden"
               >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                 <Camera size={28} />
-                <span className="text-sm font-semibold">Take Photo</span>
+                <span className="text-lg font-bold">Snapshot Now</span>
               </button>
+              
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 flex flex-col items-center gap-2 bg-white/10 text-white rounded-2xl py-5 border border-white/20 active:scale-95 transition-transform"
+                className="flex items-center justify-center gap-4 bg-white/5 backdrop-blur-md text-white border border-white/10 rounded-[2rem] py-6 active:scale-95 transition-all"
               >
-                <Upload size={28} />
-                <span className="text-sm font-semibold">Upload</span>
+                <Upload size={24} className="text-brand-400" />
+                <span className="text-lg font-bold">Upload Gallery</span>
               </button>
             </div>
-
-            <p className="text-white/40 text-xs text-center mt-6 max-w-xs leading-relaxed">
-              Powered by Gemini AI · Expert agricultural pathology analysis with treatment recommendations
-            </p>
           </motion.div>
         )}
 
-        {/* ── Preview State — Image + crop type ───────────────── */}
+        {/* ── Preview State ─────────────────────────────────────── */}
         {scanState === 'preview' && imageData && (
           <motion.div
             key="preview"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="flex-1 flex flex-col overflow-y-auto no-scrollbar"
+            exit={{ opacity: 0, y: -30 }}
+            className="flex-1 flex flex-col justify-end"
           >
-            {/* Image preview */}
-            <div className="relative mx-4 rounded-2xl overflow-hidden shadow-scanner">
-              <img src={imageData} alt="Crop" className="w-full h-56 object-cover" />
-              <button
-                onClick={handleReset}
-                className="absolute top-3 right-3 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center min-h-fit"
-              >
-                <X size={16} className="text-white" />
-              </button>
-            </div>
-
-            {/* Optional fields */}
-            <div className="px-4 py-4 space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-white/70 mb-1 block">Crop Type (optional)</label>
-                <input
-                  type="text"
-                  value={cropType}
-                  onChange={e => setCropType(e.target.value)}
-                  placeholder="e.g. Wheat, Cotton, Tomato"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/30 text-sm outline-none focus:border-brand-500"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-white/70 mb-1 block">Additional Notes (optional)</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Describe what you see — yellowing, spots, insects..."
-                  rows={2}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/30 text-sm outline-none focus:border-brand-500 resize-none min-h-fit"
-                />
-              </div>
-
-              {error && (
-                <div className="bg-danger-500/20 border border-danger-500/30 rounded-xl px-4 py-3">
-                  <p className="text-sm text-danger-300">{error}</p>
+            <div className="flex-1 p-6 flex flex-col">
+                <div className="relative flex-1 rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white/10">
+                    <img src={imageData} alt="Crop Preview" className="w-full h-full object-cover" />
+                    <button
+                        onClick={handleReset}
+                        className="absolute top-6 right-6 w-12 h-12 bg-black/50 backdrop-blur-md rounded-2xl flex items-center justify-center text-white"
+                    >
+                        <X size={24} />
+                    </button>
                 </div>
-              )}
             </div>
 
-            {/* Analyze button */}
-            <div className="px-4 pb-8 mt-auto">
-              <button
-                onClick={handleAnalyze}
-                className="btn-brand flex items-center justify-center gap-2"
-              >
-                <span className="text-lg">🔬</span> Analyze with AI
-              </button>
+            <div className="bg-white rounded-t-[3rem] p-8 space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-2">Identify Crop</label>
+                    <input
+                        type="text"
+                        value={cropType}
+                        onChange={e => setCropType(e.target.value)}
+                        placeholder="e.g. Tomato, Rice, Maize..."
+                        className="w-full bg-neutral-100 border-none rounded-2xl px-6 py-4 text-neutral-900 placeholder:text-neutral-400 font-bold outline-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-widest text-neutral-400 uppercase ml-2">Observed Symptoms</label>
+                    <textarea
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        placeholder="Help Dr. Scan with more details..."
+                        rows={2}
+                        className="w-full bg-neutral-100 border-none rounded-2xl px-6 py-4 text-neutral-900 placeholder:text-neutral-400 font-bold outline-none resize-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                    onClick={handleAnalyze}
+                    className="w-full py-5 bg-brand-600 text-white rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all"
+                >
+                    <Loader2 className="hidden" size={24} />
+                    🔬 Run AI Diagnostic
+                </button>
             </div>
           </motion.div>
         )}
 
-        {/* ── Analyzing State ─────────────────────────────────── */}
+        {/* ── Analyzing State ───────────────────────────────────── */}
         {scanState === 'analyzing' && (
           <motion.div
             key="analyzing"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col items-center justify-center px-6"
+            className="flex-1 flex flex-col items-center justify-center px-10"
           >
-            <div className="relative mb-6">
-              <div className="w-24 h-24 rounded-full bg-brand-600/20 flex items-center justify-center">
-                <Loader2 size={40} className="text-brand-500 animate-spin" />
-              </div>
-              <div className="absolute inset-0 rounded-full bg-brand-500/10 animate-pulse" />
+            <div className="relative w-48 h-48 mb-8">
+               <motion.div 
+                 animate={{ rotate: 360 }}
+                 transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                 className="absolute inset-0 border-[3px] border-dashed border-brand-500/30 rounded-full"
+               />
+               <motion.div 
+                 animate={{ rotate: -360 }}
+                 transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                 className="absolute inset-4 border-[2px] border-brand-500/20 rounded-full"
+               />
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-24 h-24 bg-brand-600 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_40px_rgba(37,99,235,0.4)]">
+                     <Loader2 size={48} className="text-white animate-spin" />
+                  </div>
+               </div>
             </div>
-            <p className="text-white font-bold text-lg mb-2" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-              Analyzing Crop...
-            </p>
-            <p className="text-white/50 text-sm text-center max-w-xs">
-              Dr. AgriScan is examining your crop image for diseases, pests, and nutrient deficiencies
+            <h2 className="text-3xl font-black text-white text-center mb-3" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                Consulting Dr. AgriScan...
+            </h2>
+            <p className="text-white/50 text-center font-medium leading-relaxed">
+                Analyzing pixels for pathogens, pests, and nutrient patterns. This usually takes 5-10 seconds.
             </p>
           </motion.div>
         )}
 
-        {/* ── Result State — Diagnostic Report ────────────────── */}
+        {/* ── Result State ───────────────────────────────────────── */}
         {scanState === 'result' && (
           <motion.div
             key="result"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
             className="flex-1 flex flex-col overflow-hidden"
           >
-            {/* Small image preview */}
-            {imageData && (
-              <div className="mx-4 mb-3 h-32 rounded-xl overflow-hidden">
-                <img src={imageData} alt="Crop" className="w-full h-full object-cover" />
-              </div>
-            )}
+            <div className="px-6 py-4 h-48 flex-shrink-0">
+               <img src={imageData!} className="w-full h-full object-cover rounded-[2.5rem] shadow-xl border-2 border-white/10" />
+            </div>
 
-            {/* Report card */}
-            <div className="flex-1 bg-white rounded-t-3xl overflow-y-auto no-scrollbar">
-              <div className="px-5 py-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <FileText size={18} className="text-brand-600" />
-                  <h2 className="text-lg font-bold text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                    Diagnostic Report
-                  </h2>
+            <div className="flex-1 bg-neutral-50 rounded-t-[3.5rem] overflow-y-auto no-scrollbar shadow-inner-lg mt-[-2rem]">
+                <div className="p-8 space-y-8">
+                   <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                         <div className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center shadow-md">
+                            <FileText size={20} />
+                         </div>
+                         <h2 className="text-2xl font-black text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>Report</h2>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="p-3 bg-white text-neutral-400 rounded-xl border border-neutral-100 shadow-sm active:scale-90 transition-all"><Share2 size={18} /></button>
+                        <button className="p-3 bg-white text-neutral-400 rounded-xl border border-neutral-100 shadow-sm active:scale-90 transition-all"><Download size={18} /></button>
+                      </div>
+                   </div>
+
+                   {/* Diagnostic Output - Premium Styling */}
+                   <div className="space-y-6">
+                      <div className="bg-white p-6 rounded-[2.5rem] border border-neutral-100 shadow-sm space-y-4">
+                         <div className="flex items-center gap-3 text-brand-600">
+                            <ShieldAlert size={20} />
+                            <h3 className="font-black text-lg">AI Diagnosis</h3>
+                         </div>
+                         <div className="text-neutral-700 leading-relaxed font-medium whitespace-pre-wrap">
+                            {report}
+                         </div>
+                      </div>
+
+                      {/* Recommendation Quick Actions */}
+                      <div className="grid grid-cols-2 gap-4">
+                         <button 
+                           onClick={() => navigate('/sarpanchgpt')}
+                           className="flex flex-col items-center gap-3 p-6 bg-brand-50 border border-brand-100 rounded-[2.5rem] hover:bg-brand-100 transition-colors"
+                         >
+                            <div className="w-12 h-12 bg-brand-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><MessageSquare size={24} /></div>
+                            <span className="text-xs font-black text-brand-900">Ask Expert</span>
+                         </button>
+                         <button 
+                           onClick={() => navigate('/marketplace')}
+                           className="flex flex-col items-center gap-3 p-6 bg-success-50 border border-success-100 rounded-[2.5rem] hover:bg-success-100 transition-colors"
+                         >
+                            <div className="w-12 h-12 bg-success-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><ShoppingBag size={24} /></div>
+                            <span className="text-xs font-black text-success-900">Buy Medicine</span>
+                         </button>
+                      </div>
+                   </div>
+
+                   <button
+                        onClick={handleReset}
+                        className="w-full py-5 bg-neutral-900 text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all"
+                    >
+                        <Camera size={24} /> Scan Next Problem
+                    </button>
+                    <div className="h-10" />
                 </div>
-
-                {/* Report content */}
-                <div className="prose prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap text-sm text-neutral-800 leading-relaxed font-body bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-                    {report}
-                  </pre>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-3 mt-5">
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-100 text-neutral-700 text-sm font-semibold hover:bg-neutral-200 transition-colors">
-                    <Share2 size={15} /> Share
-                  </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-100 text-neutral-700 text-sm font-semibold hover:bg-neutral-200 transition-colors">
-                    <Download size={15} /> Save
-                  </button>
-                </div>
-
-                {/* Scan again */}
-                <button
-                  onClick={handleReset}
-                  className="btn-brand mt-4 flex items-center justify-center gap-2"
-                >
-                  <Camera size={18} /> Scan Another Crop
-                </button>
-
-                <div className="h-8" />
-              </div>
             </div>
           </motion.div>
         )}
-
       </AnimatePresence>
     </div>
   )

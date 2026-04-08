@@ -2,11 +2,10 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Search, Bell, ChevronRight, Clock, Droplets,
+  ChevronRight, Clock, Droplets,
   CloudRain, TrendingUp, Sparkles,
   ThermometerSun, Bug, Leaf
 } from 'lucide-react'
-import { useAuthStore } from '../../store/useAuthStore'
 import { useWeather } from '../../hooks/useWeather'
 import WeatherWidget from '../../components/shared/WeatherWidget'
 import BannerCarousel from '../../components/shared/BannerCarousel'
@@ -201,49 +200,12 @@ const PRIORITY_LABELS: Record<string, string> = {
 
 export default function Home() {
   const navigate = useNavigate()
-  const farmer   = useAuthStore(s => s.farmer)
-  const firstName = farmer?.name?.split(' ')[0] || 'Farmer'
   const { current } = useWeather()
   const insights = generateInsights(current)
 
   return (
     <div className="px-4 py-5 space-y-5 max-w-2xl mx-auto w-full">
 
-      {/* ── Greeting Header ──────────────────────────────────────────── */}
-      <motion.div {...stagger.item} className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {farmer?.photoURL ? (
-            <img src={farmer.photoURL} alt="" className="w-12 h-12 rounded-full object-cover ring-2 ring-neutral-200" />
-          ) : (
-            <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-xl select-none ring-2 ring-brand-200">
-              👨‍🌾
-            </div>
-          )}
-          <div>
-            <p className="text-sm text-neutral-500 flex items-center gap-1">
-              Hello 👋
-            </p>
-            <h1 className="text-xl font-bold text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-              {firstName}
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate('/marketplace')}
-            className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
-          >
-            <Search size={18} className="text-neutral-600" />
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors relative"
-          >
-            <Bell size={18} className="text-neutral-600" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-brand-500 rounded-full" />
-          </button>
-        </div>
-      </motion.div>
 
       {/* ── Banner Slideshow ──────────────────────────────────────────── */}
       <motion.div {...stagger.item}>

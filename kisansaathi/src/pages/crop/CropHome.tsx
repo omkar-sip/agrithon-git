@@ -1,5 +1,5 @@
 // src/pages/crop/CropHome.tsx — English only, full Today's Plan with Gemini
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw, ChevronDown, ChevronUp, Wifi, WifiOff } from 'lucide-react'

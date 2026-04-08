@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Phone, Eye, EyeOff, ArrowRight, ChevronLeft, AlertCircle, Mic } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight, ChevronLeft, AlertCircle, Mic } from 'lucide-react'
 import {
   signInWithPopup,
   createUserWithEmailAndPassword,

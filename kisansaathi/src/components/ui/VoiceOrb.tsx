@@ -1,6 +1,6 @@
 // src/components/ui/VoiceOrb.tsx — animated voice orb for voice agent
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mic, Square, Loader2, Volume2 } from 'lucide-react'
+import { Mic, Loader2, Volume2 } from 'lucide-react'
 import type { VoiceAgentState } from '../../hooks/useVoiceAgent'
 
 interface VoiceOrbProps {
@@ -57,7 +57,6 @@ function WaveBars() {
 export default function VoiceOrb({ state, onPress, size = 'md', className = '' }: VoiceOrbProps) {
   const s = SIZE[size]
   const isListening = state === 'listening'
-  const isActive = state !== 'idle' && state !== 'error'
 
   return (
     <div className={`flex flex-col items-center gap-3 ${className}`}>

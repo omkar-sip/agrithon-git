@@ -30,6 +30,7 @@ export function useVoiceAgent(
   const [transcript, setTranscript] = useState('')
   const [response, setResponse]     = useState('')
   const [error, setError]           = useState<string | null>(null)
+  const transcriptRef = useRef('')
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const synthRef       = useRef<SpeechSynthesisUtterance | null>(null)
@@ -95,12 +96,13 @@ export function useVoiceAgent(
     }
     recognition.onresult = (e: SpeechRecognitionEvent) => {
       const text = Array.from(e.results).map(r => r[0].transcript).join('')
+      transcriptRef.current = text
       setTranscript(text)
       options.onTranscript?.(text)
     }
     recognition.onend = async () => {
       if (abortRef.current) return
-      const finalText = transcript || ''
+      const finalText = transcriptRef.current || ''
       if (!finalText.trim()) { setState('idle'); return }
 
       setState('processing')
@@ -118,7 +120,7 @@ export function useVoiceAgent(
 
     recognitionRef.current = recognition
     recognition.start()
-  }, [state, language, transcript, aiResponseFn, speak, stopAll])
+  }, [state, language, aiResponseFn, speak, stopAll])
 
   // Cleanup on unmount
   useEffect(() => () => stopAll(), [])

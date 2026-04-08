@@ -23,9 +23,9 @@ const QUICK_QUESTIONS = [
 ]
 
 export default function SarpanchGPT() {
-  const navigate  = useNavigate()
+  const navigate = useNavigate()
   const { language } = useLanguageStore()
-  const farmer    = useAuthStore(s => s.farmer)
+  const farmer = useAuthStore(s => s.farmer)
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -34,11 +34,11 @@ export default function SarpanchGPT() {
       timestamp: new Date(),
     }
   ])
-  const [input, setInput]   = useState('')
+  const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [mode, setMode]       = useState<'text' | 'voice'>('voice')
+  const [mode, setMode] = useState<'text' | 'voice'>('voice')
   const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef  = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -88,7 +88,7 @@ export default function SarpanchGPT() {
   const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-50">
+    <div className="flex flex-col h-screen h-[100dvh] bg-neutral-50 overflow-hidden relative">
 
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="bg-forest-900 text-white flex-shrink-0"
@@ -103,17 +103,16 @@ export default function SarpanchGPT() {
               Sarpanch AI
             </p>
             <div className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                voiceAgent.isListening ? 'bg-danger-400' :
-                voiceAgent.isProcessing ? 'bg-gold-400 animate-pulse' :
-                voiceAgent.isSpeaking ? 'bg-info-400 animate-pulse' :
-                'bg-success-400'
-              }`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${voiceAgent.isListening ? 'bg-danger-400' :
+                  voiceAgent.isProcessing ? 'bg-gold-400 animate-pulse' :
+                    voiceAgent.isSpeaking ? 'bg-info-400 animate-pulse' :
+                      'bg-success-400'
+                }`} />
               <p className="text-forest-300 text-xs">
-                {voiceAgent.isListening  ? 'Listening...' :
-                 voiceAgent.isProcessing ? 'Thinking...' :
-                 voiceAgent.isSpeaking   ? 'Speaking...' :
-                 'Online · AI Advisor'}
+                {voiceAgent.isListening ? 'Listening...' :
+                  voiceAgent.isProcessing ? 'Thinking...' :
+                    voiceAgent.isSpeaking ? 'Speaking...' :
+                      'Online · AI Advisor'}
               </p>
             </div>
           </div>
@@ -145,11 +144,10 @@ export default function SarpanchGPT() {
                 </div>
               )}
               <div className="max-w-[82%]">
-                <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === 'user'
+                <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === 'user'
                     ? 'bg-forest-900 text-white rounded-br-sm'
                     : 'bg-white text-neutral-800 border border-neutral-200 shadow-card rounded-bl-sm'
-                }`}>
+                  }`}>
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
                 <p className="text-[11px] text-neutral-400 mt-1 px-1">
@@ -168,7 +166,7 @@ export default function SarpanchGPT() {
               <div className="w-8 h-8 rounded-full bg-forest-900 flex items-center justify-center text-sm select-none shrink-0 mt-1">🌾</div>
               <div className="bg-white border border-neutral-200 shadow-card rounded-2xl rounded-bl-sm px-4 py-3">
                 <div className="flex gap-1 items-center h-5">
-                  {[0,1,2].map(i => (
+                  {[0, 1, 2].map(i => (
                     <motion.div key={i}
                       className="w-2 h-2 bg-neutral-300 rounded-full"
                       animate={{ opacity: [0.4, 1, 0.4], y: [0, -3, 0] }}

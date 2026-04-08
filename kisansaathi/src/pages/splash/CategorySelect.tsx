@@ -1,112 +1,153 @@
-// src/pages/splash/CategorySelect.tsx — redesigned clean 4-category picker
+// src/pages/splash/CategorySelect.tsx — redesigned clean 4-category picker (AgroSathi Apple-style)
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CheckCircle2, ArrowRight } from 'lucide-react'
+import { ArrowRight, Mic } from 'lucide-react'
 import { useCategoryStore, CATEGORY_META, type FarmingCategory } from '../../store/useCategoryStore'
 
-const CATEGORIES: FarmingCategory[] = ['crop', 'livestock', 'poultry', 'fishery']
+import { useVoiceInput } from '../../hooks/useVoiceInput'
 
-const CATEGORY_ACCENT: Record<FarmingCategory, { selected: string; dot: string; border: string }> = {
-  crop:      { selected: 'bg-forest-900',  dot: 'bg-forest-900', border: 'border-forest-900' },
-  livestock: { selected: 'bg-amber-700',   dot: 'bg-amber-700',  border: 'border-amber-700' },
-  poultry:   { selected: 'bg-orange-600',  dot: 'bg-orange-600', border: 'border-orange-600' },
-  fishery:   { selected: 'bg-sky-700',     dot: 'bg-sky-700',    border: 'border-sky-700' },
-}
+const CATEGORIES: FarmingCategory[] = ['crop', 'livestock', 'poultry', 'fishery']
 
 export default function CategorySelect() {
   const navigate = useNavigate()
   const { category, setCategory } = useCategoryStore()
 
-  return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col">
+  const { isListening, startListening, stopListening } = useVoiceInput({
+    onResult: (transcript) => {
+      const lower = transcript.toLowerCase()
+      if (lower.includes('crop') || lower.includes('wheat') || lower.includes('rice')) {
+        setCategory('crop')
+      } else if (lower.includes('livestock') || lower.includes('cow') || lower.includes('cattle')) {
+        setCategory('livestock')
+      } else if (lower.includes('poultry') || lower.includes('chicken') || lower.includes('hen')) {
+        setCategory('poultry')
+      } else if (lower.includes('fish') || lower.includes('aquaculture') || lower.includes('pond')) {
+        setCategory('fishery')
+      }
+    }
+  })
 
-      {/* Header */}
-      <div className="bg-forest-900 text-white px-6 pb-8 pt-14 text-center"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 48px)' }}>
-        <motion.div initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-          <p className="text-forest-300 text-sm font-medium mb-2">Step 2 of 3</p>
-          <h1 className="text-2xl font-bold text-white leading-snug"
-            style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+  const handleVoice = () => {
+    if (isListening) stopListening()
+    else startListening('en-US') // Fallback to english for parsing simple words in demo
+  }
+
+  const handleContinue = () => {
+    if (category) {
+      navigate(`/login`) // Fixed: following the instruction plan: Category -> Login
+    }
+  }
+
+  return (
+    <div className="h-screen h-[100dvh] overflow-hidden bg-[#F5F5F7] flex flex-col items-center">
+
+      {/* Header Section */}
+      <div className="w-full shrink-0 bg-gradient-to-b from-brand-700 to-brand-600 text-white rounded-b-3xl shadow-lg relative"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 40px)', paddingBottom: '40px' }}>
+
+        {/* Voice Integration Button */}
+        <button
+          onClick={handleVoice}
+          className={`absolute top-6 right-6 p-3 rounded-full shadow-md transition-all duration-300 flex items-center justify-center
+            ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm'}`
+          }
+          aria-label="Voice input"
+        >
+          <Mic size={24} />
+        </button>
+
+        <motion.div initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="px-6 text-center max-w-2xl mx-auto">
+          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>
             What kind of farming do you do?
           </h1>
-          <p className="text-forest-300 text-sm mt-2">
-            We'll personalize your experience based on this
+          <p className="text-forest-100 text-lg md:text-xl font-medium">
+            We’ll personalize your experience based on this.
           </p>
         </motion.div>
       </div>
 
-      {/* Category cards */}
-      <div className="flex-1 px-4 py-6 space-y-3 max-w-lg mx-auto w-full">
-        {CATEGORIES.map((cat, i) => {
-          const meta    = CATEGORY_META[cat]
-          const accent  = CATEGORY_ACCENT[cat]
-          const selected = category === cat
+      {/* Main Content Arena */}
+      <div className="flex-1 overflow-y-auto no-scrollbar w-full max-w-3xl px-4 py-8 md:py-12 flex flex-col">
 
-          return (
-            <motion.button
-              key={cat}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08, ease: 'easeOut' }}
-              onClick={() => setCategory(cat)}
-              className={`
-                w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left
-                transition-all duration-200 active:scale-[0.99]
-                ${selected
-                  ? `${accent.border} bg-white shadow-card-md`
-                  : 'border-neutral-200 bg-white shadow-card hover:border-neutral-300 hover:shadow-card-md'}
-              `}
-            >
-              {/* Category icon */}
-              <div className={`
-                w-14 h-14 rounded-xl flex items-center justify-center shrink-0 text-3xl select-none
-                transition-colors duration-200
-                ${selected ? accent.selected + ' text-white' : 'bg-neutral-100'}
-              `}>
-                {meta.emoji}
-              </div>
+        {/* Category Cards (2x2 Grid Desktop, Stack Mobile) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-12">
+          {CATEGORIES.map((cat, i) => {
+            const meta = CATEGORY_META[cat]
+            const selected = category === cat
 
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <p className={`font-bold text-base leading-tight ${selected ? 'text-neutral-900' : 'text-neutral-800'}`}
-                  style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                  {meta.label}
-                </p>
-                <p className="text-neutral-500 text-sm mt-0.5 leading-snug">
-                  {meta.description}
-                </p>
-              </div>
+            return (
+              <motion.button
+                key={cat}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1, ease: 'easeOut', duration: 0.4 }}
+                onClick={() => setCategory(cat)}
+                className={`
+                  relative flex items-center gap-4 p-5 rounded-2xl text-left 
+                  transition-all duration-300 ease-in-out border-2 overflow-hidden
+                  ${selected
+                    ? 'border-brand-500 bg-brand-50 shadow-md scale-[1.02]'
+                    : 'border-transparent bg-white shadow-sm hover:shadow-md hover:scale-[1.01]'}
+                `}
+              >
+                {/* Visual Indicator Line (Apple-style left edge accent) */}
+                {selected && (
+                  <motion.div layoutId="selection-edge" className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500" />
+                )}
 
-              {/* Check */}
-              {selected
-                ? <CheckCircle2 size={22} className={`shrink-0 ${accent.dot.replace('bg-', 'text-')}`} />
-                : <div className="w-5 h-5 rounded-full border-2 border-neutral-300 shrink-0" />
-              }
-            </motion.button>
-          )
-        })}
-      </div>
+                {/* Icon */}
+                <div className={`
+                  w-16 h-16 rounded-xl flex items-center justify-center shrink-0 text-4xl shadow-sm
+                  transition-colors duration-300
+                  ${selected ? 'bg-brand-100' : 'bg-neutral-100'}
+                `}>
+                  {meta.emoji}
+                </div>
 
-      {/* CTA */}
-      <div className="px-4 pb-10 max-w-lg mx-auto w-full"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)' }}>
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          onClick={() => { if (category) navigate('/login') }}
-          disabled={!category}
-          className={`
-            w-full flex items-center justify-center gap-2 py-4 rounded-xl font-semibold text-base
-            transition-all duration-200
-            ${category
-              ? 'bg-forest-900 text-white shadow-card-md hover:bg-forest-800 active:scale-[0.98]'
-              : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'}
-          `}
-        >
-          Continue
-          <ArrowRight size={18} />
-        </motion.button>
+                {/* Metadata */}
+                <div className="flex-1 min-w-0 pr-2">
+                  <h3 className={`font-bold text-lg leading-tight mb-1 ${selected ? 'text-forest-800' : 'text-neutral-900'}`}>
+                    {meta.label}
+                  </h3>
+                  <p className="text-neutral-500 text-sm leading-snug font-medium">
+                    {meta.description}
+                  </p>
+                </div>
+
+                {/* Radio Circle */}
+                <div className="shrink-0 flex items-center justify-center mr-1">
+                  <div className={`
+                    w-6 h-6 rounded-full border-2 transition-all duration-300 flex items-center justify-center
+                    ${selected ? 'border-brand-500' : 'border-neutral-300'}
+                  `}>
+                    {selected && <div className="w-3 h-3 rounded-full bg-brand-500 shadow-sm" />}
+                  </div>
+                </div>
+              </motion.button>
+            )
+          })}
+        </div>
+
+        {/* Action Button - Sticky/Bottom aligned */}
+        <div className="mt-auto md:w-2/3 mx-auto w-full pb-8">
+          <motion.button
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            onClick={handleContinue}
+            disabled={!category}
+            className={`
+              w-full flex items-center justify-center gap-3 py-4 md:py-5 rounded-2xl font-bold text-lg
+              transition-all duration-300 shadow-lg
+              ${category
+                ? 'bg-brand-600 text-white hover:bg-brand-700 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]'
+                : 'bg-neutral-300 text-neutral-500 cursor-not-allowed shadow-none'}
+            `}
+          >
+            Continue
+            <ArrowRight size={22} className={category ? "animate-pulse" : ""} />
+          </motion.button>
+        </div>
       </div>
     </div>
   )

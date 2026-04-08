@@ -14,14 +14,12 @@ import { SkeletonCard } from '../../components/ui/Skeleton'
 import type { StatusColor } from '../../utils/colorSystem'
 
 const CROP_ACTIONS = [
-  { label: 'Crop Doctor',    emoji: '🩺', path: '/crop/advisory' },
-  { label: 'Market Prices',  emoji: '📊', path: '/crop/market' },
-  { label: 'Weather',        emoji: '🌤️', path: '/crop/weather' },
-  { label: 'Soil Health',    emoji: '🌱', path: '/crop/soil' },
-  { label: 'Community',      emoji: '👥', path: '/crop/community' },
-  { label: 'Govt Schemes',   emoji: '🏛️', path: '/crop/schemes' },
-  { label: 'Village Alerts', emoji: '📍', path: '/crop/alerts' },
-  { label: 'Crop Tracking',  emoji: '🚛', path: '/crop' },
+  { label: 'Crop Doctor (AI)', emoji: '🩺', path: '/crop/advisory' },
+  { label: 'Mandi Marketplace', emoji: '📊', path: '/crop/market' },
+  { label: 'Equipment Renting', emoji: '🚜', path: '/crop' },
+  { label: 'Govt Schemes', emoji: '🏛️', path: '/crop/schemes' },
+  { label: 'AI Advisor', emoji: '✨', path: '/sarpanchgpt' },
+  { label: 'Voice Assistant', emoji: '🎙️', path: '/crop' },
 ]
 
 export default function CropHome() {
@@ -162,15 +160,15 @@ export default function CropHome() {
         {/* Quick actions */}
         <section>
           <h2 className="section-title">⚡ Quick Actions</h2>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             {CROP_ACTIONS.map((action, i) => (
               <button
                 key={i}
                 onClick={() => navigate(action.path)}
-                className="bg-white border border-parchment rounded-2xl p-3 flex flex-col items-center gap-1.5 min-h-[80px] justify-center shadow-card active:scale-95 transition-transform"
+                className="bg-white border-2 border-green-100 rounded-2xl p-3 flex flex-col items-center gap-2 min-h-[95px] justify-center shadow-sm hover:shadow-md hover:border-green-300 active:scale-95 transition-all"
               >
                 <span className="text-3xl select-none">{action.emoji}</span>
-                <span className="text-xs font-bold text-center text-soil-700 leading-tight">{action.label}</span>
+                <span className="text-xs font-bold text-center text-forest-800 leading-tight">{action.label}</span>
               </button>
             ))}
           </div>

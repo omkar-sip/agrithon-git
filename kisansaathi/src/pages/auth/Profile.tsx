@@ -1,25 +1,23 @@
-// src/pages/auth/Profile.tsx — clean profile setup wizard v2
-// Flow: Login → Profile (3 steps) → Home
+// src/pages/auth/Profile.tsx — v3 orange theme with 4-step progress bar
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, ChevronLeft, Check } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Check, Camera, MapPin, Mic } from 'lucide-react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useCategoryStore, CATEGORY_META } from '../../store/useCategoryStore'
 import toast from 'react-hot-toast'
 
-// ── Data ────────────────────────────────────────────────────────────
 const LAND_OPTIONS = [
-  { value: '<1',  label: 'Less than 1 acre' },
+  { value: '<1', label: 'Less than 1 acre' },
   { value: '1-5', label: '1 – 5 acres' },
-  { value: '5-10',label: '5 – 10 acres' },
+  { value: '5-10', label: '5 – 10 acres' },
   { value: '10+', label: '10+ acres' },
 ] as const
 
 const WATER_OPTIONS = [
-  { value: 'rain-fed',  label: 'Rain Dependent',   desc: 'Farming depends on monsoons' },
-  { value: 'irrigated', label: 'Canal / Bore Well', desc: 'Tube well, canal, or drip system' },
-  { value: 'pond',      label: 'Pond / Reservoir',  desc: 'Farm pond or natural reservoir' },
+  { value: 'rain-fed', label: 'Rain Dependent', desc: 'Depends on monsoons' },
+  { value: 'irrigated', label: 'Canal / Bore Well', desc: 'Tube well, canal, drip' },
+  { value: 'pond', label: 'Pond / Reservoir', desc: 'Farm pond or reservoir' },
 ] as const
 
 const INDIAN_STATES = [
@@ -30,25 +28,23 @@ const INDIAN_STATES = [
   'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
 ]
 
-type Land  = '<1' | '1-5' | '5-10' | '10+'
+type Land = '<1' | '1-5' | '5-10' | '10+'
 type Water = 'rain-fed' | 'irrigated' | 'pond'
 
-const STEPS = ['Your Name', 'Farm Location', 'Farm Details']
+const STEPS = ['Your Info', 'Farm Location', 'Farm Details', 'Confirm']
 
 export default function Profile() {
   const navigate = useNavigate()
   const { farmer, setFarmer } = useAuthStore()
-  const { category }          = useCategoryStore()
+  const { category } = useCategoryStore()
 
-  const [step, setStep]         = useState(0)
-  const [name, setName]         = useState(farmer?.name || '')
-  const [village, setVillage]   = useState(farmer?.village || '')
+  const [step, setStep] = useState(0)
+  const [name, setName] = useState(farmer?.name || '')
+  const [village, setVillage] = useState(farmer?.village || '')
   const [district, setDistrict] = useState(farmer?.district || '')
-  const [state, setState]       = useState(farmer?.state || '')
-  const [land, setLand]         = useState<Land>('<1')
-  const [water, setWater]       = useState<Water>('rain-fed')
-
-  const catMeta = category ? CATEGORY_META[category] : null
+  const [state, setState] = useState(farmer?.state || '')
+  const [land, setLand] = useState<Land>('<1')
+  const [water, setWater] = useState<Water>('rain-fed')
 
   const canProceed = () => {
     if (step === 0) return name.trim().length >= 2
@@ -57,18 +53,18 @@ export default function Profile() {
   }
 
   const handleNext = () => {
-    if (step < 2) setStep(s => s + 1)
+    if (step < 3) setStep(s => s + 1)
     else handleComplete()
   }
 
   const handleComplete = () => {
     setFarmer({
-      uid:  farmer?.uid || 'local',
+      uid: farmer?.uid || 'local',
       name: name.trim() || 'Farmer',
       state, district, village,
       landHolding: land,
       waterSource: water,
-      crops:    [],
+      crops: [],
       language: 'en',
       category: category || 'crop',
     })
@@ -78,9 +74,9 @@ export default function Profile() {
 
   const handleSkip = () => {
     setFarmer({
-      uid:      farmer?.uid || 'local',
-      name:     farmer?.name || 'Farmer',
-      state:    '', district: '', village: '',
+      uid: farmer?.uid || 'local',
+      name: farmer?.name || 'Farmer',
+      state: '', district: '', village: '',
       landHolding: '<1', waterSource: 'rain-fed',
       crops: [], language: 'en', category: category || 'crop',
     })
@@ -88,48 +84,48 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col">
+    <div className="page-root bg-white">
 
-      {/* ── Header + progress ──────────────────────────────────────── */}
-      <div className="bg-forest-900 text-white px-5 pb-6"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 20px)' }}>
-        {/* Back navigation */}
-        <div className="flex items-center gap-3 mb-5">
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div className="px-4 pt-5 pb-4 shrink-0">
+        <div className="flex items-center gap-3 mb-4">
           {step > 0 ? (
             <button onClick={() => setStep(s => s - 1)}
-              className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-              <ChevronLeft size={18} />
+              className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors">
+              <ChevronLeft size={20} className="text-neutral-600" />
             </button>
-          ) : <div className="w-9 h-9" />}
-          <div className="flex-1">
-            <p className="text-forest-300 text-xs font-medium">
-              Step {step + 1} of {STEPS.length}
-            </p>
-            <p className="font-bold text-base text-white" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-              {STEPS[step]}
-            </p>
-          </div>
-          <button onClick={handleSkip}
-            className="text-forest-300 text-sm hover:text-white transition-colors">
+          ) : (
+            <button onClick={() => navigate(-1)}
+              className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors">
+              <ChevronLeft size={20} className="text-neutral-600" />
+            </button>
+          )}
+          <h1 className="text-lg font-bold text-neutral-900 flex-1" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+            Profile Setup
+          </h1>
+          <button onClick={handleSkip} className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">
             Skip
           </button>
         </div>
 
         {/* Progress bar */}
-        <div className="flex gap-1.5">
-          {STEPS.map((_, i) => (
-            <div
-              key={i}
-              className={`flex-1 h-1 rounded-full transition-all duration-300 ${
-                i <= step ? 'bg-gold-400' : 'bg-white/20'
-              }`}
-            />
-          ))}
+        <div className="flex items-center gap-1">
+          <div className="flex-1 flex gap-1.5">
+            {STEPS.map((_, i) => (
+              <div
+                key={i}
+                className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
+                  i <= step ? 'bg-brand-500' : 'bg-neutral-200'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-xs text-neutral-400 font-medium ml-2 shrink-0">{step + 1}/{STEPS.length}</span>
         </div>
       </div>
 
-      {/* ── Step content ───────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto">
+      {/* ── Step Content ──────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto no-scrollbar">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -137,60 +133,52 @@ export default function Profile() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.18 }}
-            className="px-5 py-6 max-w-lg mx-auto w-full space-y-5"
+            className="px-6 py-4 max-w-lg mx-auto w-full space-y-5"
           >
 
-            {/* ── Step 0: Name ──────────────────────────────────── */}
+            {/* ── Step 0: Name + Photo ──────────────────────────── */}
             {step === 0 && (
-              <div className="space-y-5">
-                <div>
-                  <h2 className="text-xl font-bold text-neutral-900 mb-1"
-                    style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                    What's your name?
-                  </h2>
-                  <p className="text-sm text-neutral-500">
-                    We'll use this to personalise your advice
-                  </p>
-                </div>
-
-                {/* If Google/email auth provided name, show it */}
-                {farmer?.name && farmer.name !== 'Farmer' && (
-                  <div className="flex items-center gap-3 bg-success-50 border border-success-100 rounded-xl px-4 py-3">
-                    {farmer.photoURL && (
-                      <img src={farmer.photoURL} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+              <div className="space-y-6">
+                {/* Photo upload */}
+                <div className="flex justify-center">
+                  <div className="relative">
+                    {farmer?.photoURL ? (
+                      <img src={farmer.photoURL} alt="" className="w-24 h-24 rounded-full object-cover ring-4 ring-neutral-100" />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-neutral-100 flex items-center justify-center text-3xl select-none ring-4 ring-neutral-50">
+                        👨‍🌾
+                      </div>
                     )}
-                    <div>
-                      <p className="text-xs text-success-700 font-medium">Google account detected</p>
-                      <p className="text-sm font-semibold text-neutral-900">{farmer.name}</p>
-                    </div>
-                    <button onClick={() => setName(farmer.name)}
-                      className="ml-auto text-xs bg-success-600 text-white rounded-lg px-3 py-1.5 font-semibold">
-                      Use this
+                    <button className="absolute bottom-0 right-0 w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white shadow-card">
+                      <Camera size={14} />
                     </button>
                   </div>
-                )}
-
-                <div>
-                  <label className="input-label">Your full name</label>
-                  <input
-                    id="farmer-name-input"
-                    type="text"
-                    autoFocus
-                    autoComplete="name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="e.g. Ramesh Kumar"
-                    className="input text-lg"
-                  />
                 </div>
 
-                {/* Category context */}
-                {catMeta && (
-                  <div className="bg-white border border-neutral-200 rounded-xl p-4 flex items-center gap-3">
-                    <span className="text-2xl select-none">{catMeta.emoji}</span>
-                    <div>
-                      <p className="text-xs text-neutral-400 font-medium">Your farming category</p>
-                      <p className="text-sm font-semibold text-neutral-900">{catMeta.label}</p>
+                <div>
+                  <label className="input-label">Your name</label>
+                  <div className="relative">
+                    <input
+                      autoFocus
+                      type="text"
+                      autoComplete="name"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="Ramesh Kumar"
+                      className="input pr-10"
+                    />
+                    <button className="absolute right-3 top-1/2 -translate-y-1/2 min-h-fit">
+                      <Mic size={16} className="text-neutral-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {farmer?.phone && (
+                  <div>
+                    <label className="input-label">Mobile Number</label>
+                    <div className="flex items-center justify-between bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3">
+                      <span className="text-base text-neutral-900">+91 {farmer.phone}</span>
+                      <Check size={18} className="text-success-500" />
                     </div>
                   </div>
                 )}
@@ -201,19 +189,24 @@ export default function Profile() {
             {step === 1 && (
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-xl font-bold text-neutral-900 mb-1"
-                    style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                    Where is your farm?
-                  </h2>
-                  <p className="text-sm text-neutral-500">
-                    For accurate local weather &amp; market prices
-                  </p>
+                  <label className="input-label">Location (Village/District)</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={village}
+                      onChange={e => setVillage(e.target.value)}
+                      placeholder="Bhuj Kutch Gujarat 370001"
+                      className="input pr-10"
+                    />
+                    <button className="absolute right-3 top-1/2 -translate-y-1/2 min-h-fit">
+                      <MapPin size={16} className="text-neutral-400" />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="input-label">State *</label>
                   <select
-                    id="state-select"
                     value={state}
                     onChange={e => setState(e.target.value)}
                     className="input"
@@ -228,7 +221,6 @@ export default function Profile() {
                 <div>
                   <label className="input-label">District</label>
                   <input
-                    id="district-input"
                     type="text"
                     value={district}
                     onChange={e => setDistrict(e.target.value)}
@@ -236,86 +228,59 @@ export default function Profile() {
                     className="input"
                   />
                 </div>
-
-                <div>
-                  <label className="input-label">Village / Town</label>
-                  <input
-                    id="village-input"
-                    type="text"
-                    value={village}
-                    onChange={e => setVillage(e.target.value)}
-                    placeholder="Your village name"
-                    className="input"
-                  />
-                </div>
               </div>
             )}
 
-            {/* ── Step 2: Farm details ──────────────────────────── */}
+            {/* ── Step 2: Farm Details ──────────────────────────── */}
             {step === 2 && (
               <div className="space-y-5">
-                <div>
-                  <h2 className="text-xl font-bold text-neutral-900 mb-1"
-                    style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                    About your farm
-                  </h2>
-                  <p className="text-sm text-neutral-500">
-                    Helps us give accurate advice for your situation
-                  </p>
-                </div>
-
-                {/* Land holding */}
                 <div>
                   <label className="input-label">How much land do you farm?</label>
                   <div className="grid grid-cols-2 gap-2">
                     {LAND_OPTIONS.map(opt => (
                       <button
                         key={opt.value}
-                        id={`land-${opt.value}`}
                         onClick={() => setLand(opt.value)}
                         className={`
                           py-3.5 px-4 rounded-xl border-2 text-sm font-semibold text-left
-                          flex items-center justify-between
-                          transition-all duration-150 active:scale-[0.98]
+                          flex items-center justify-between transition-all duration-150 active:scale-[0.98]
                           ${land === opt.value
-                            ? 'border-forest-900 bg-forest-900 text-white'
+                            ? 'border-brand-500 bg-brand-50 text-brand-800'
                             : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300'}
                         `}
                       >
                         {opt.label}
-                        {land === opt.value && <Check size={14} />}
+                        {land === opt.value && <Check size={14} className="text-brand-600" />}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Water source */}
                 <div>
                   <label className="input-label">Primary water source</label>
                   <div className="space-y-2">
                     {WATER_OPTIONS.map(opt => (
                       <button
                         key={opt.value}
-                        id={`water-${opt.value}`}
                         onClick={() => setWater(opt.value)}
                         className={`
                           w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left
                           transition-all duration-150 active:scale-[0.99]
                           ${water === opt.value
-                            ? 'border-sky-700 bg-sky-700 text-white'
+                            ? 'border-brand-500 bg-brand-50'
                             : 'border-neutral-200 bg-white hover:border-neutral-300'}
                         `}
                       >
                         <div className="flex-1">
-                          <p className={`font-semibold text-sm ${water === opt.value ? 'text-white' : 'text-neutral-900'}`}>
+                          <p className={`font-semibold text-sm ${water === opt.value ? 'text-brand-800' : 'text-neutral-900'}`}>
                             {opt.label}
                           </p>
-                          <p className={`text-xs mt-0.5 ${water === opt.value ? 'text-white/75' : 'text-neutral-400'}`}>
+                          <p className={`text-xs mt-0.5 ${water === opt.value ? 'text-brand-600/70' : 'text-neutral-400'}`}>
                             {opt.desc}
                           </p>
                         </div>
                         {water === opt.value
-                          ? <Check size={16} className="text-white shrink-0" />
+                          ? <Check size={16} className="text-brand-600 shrink-0" />
                           : <div className="w-4 h-4 rounded-full border-2 border-neutral-300 shrink-0" />}
                       </button>
                     ))}
@@ -324,30 +289,44 @@ export default function Profile() {
               </div>
             )}
 
+            {/* ── Step 3: Confirm ──────────────────────────────── */}
+            {step === 3 && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                  All set! 🎉
+                </h2>
+                <p className="text-sm text-neutral-500">Review your profile details:</p>
+
+                <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 space-y-3">
+                  {[
+                    { label: 'Name', value: name || 'Not set' },
+                    { label: 'Location', value: [village, district, state].filter(Boolean).join(', ') || 'Not set' },
+                    { label: 'Land', value: LAND_OPTIONS.find(o => o.value === land)?.label || land },
+                    { label: 'Water', value: WATER_OPTIONS.find(o => o.value === water)?.label || water },
+                    { label: 'Category', value: category ? CATEGORY_META[category].label : 'Crop Farming' },
+                  ].map(item => (
+                    <div key={item.label} className="flex justify-between items-center py-2 border-b border-neutral-100 last:border-0">
+                      <span className="text-sm text-neutral-500">{item.label}</span>
+                      <span className="text-sm font-semibold text-neutral-900">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* ── Footer CTA ─────────────────────────────────────────────── */}
-      <div className="px-5 py-4 bg-white border-t border-neutral-200 max-w-lg mx-auto w-full"
+      {/* ── Footer CTA ─────────────────────────────────────────── */}
+      <div className="px-6 py-4 bg-white border-t border-neutral-100 max-w-lg mx-auto w-full"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <button
-          id="profile-next-btn"
           onClick={handleNext}
           disabled={!canProceed()}
-          className={`
-            w-full flex items-center justify-center gap-2 py-4 rounded-xl font-semibold text-base
-            transition-all duration-200 active:scale-[0.98]
-            ${canProceed()
-              ? 'bg-forest-900 text-white shadow-card-md hover:bg-forest-800'
-              : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'}
-          `}
+          className="btn-brand"
         >
-          {step < 2 ? (
-            <>Continue <ChevronRight size={18} /></>
-          ) : (
-            <>Start Using Sarpanch AI {catMeta?.emoji || '🌾'}</>
-          )}
+          {step < 3 ? 'Continue' : `Start Using Sarpanch AI 🌾`}
         </button>
       </div>
     </div>

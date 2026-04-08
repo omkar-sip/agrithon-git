@@ -77,6 +77,7 @@ export async function diagnoseCropDisease(params: {
   cropType: string
   symptomsDescription: string
   language: string
+  base64Image?: string
 }): Promise<string> {
   const lang = LANG_NAMES[params.language] || 'Hindi'
   const system = `You are an Indian agricultural pathologist helping smallholder farmers.
@@ -91,7 +92,33 @@ Keep language simple — the farmer is semi-literate.`
   const user = `Crop: ${params.cropType}
 Symptoms: ${params.symptomsDescription}`
 
-  return generate(system, user)
+  const client = getClient()
+  if (!client) {
+    console.warn('[Gemini] No API key configured — returning mock response')
+    return getMockResponse(user)
+  }
+
+  const model = client.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    systemInstruction: system,
+  })
+
+  // If there's an image, pass it as a Part
+  if (params.base64Image) {
+    // Strip metadata part if present e.g. "data:image/jpeg;base64,"
+    const base64Data = params.base64Image.split(',')[1] || params.base64Image
+    const mimeType = params.base64Image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg'
+    
+    const parts: any[] = [
+      { text: user },
+      { inlineData: { data: base64Data, mimeType } }
+    ]
+    const result = await model.generateContent(parts)
+    return result.response.text()
+  } else {
+    const result = await model.generateContent(user)
+    return result.response.text()
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -226,3 +253,107 @@ ALWAYS end with:
 
   return generate(system, params.question)
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FEATURE 8: Crop Disease Scanner — Camera-based image analysis
+// Expert-grade diagnostic report with Gemini Vision
+// ══════════════════════════════════════════════════════════════════════════════
+export async function analyzeCropImage(params: {
+  base64Image: string
+  cropType?: string
+  additionalNotes?: string
+  language: string
+}): Promise<string> {
+  const lang = LANG_NAMES[params.language] || 'English'
+  const system = `You are Dr. AgriScan — a world-class plant pathologist with 25+ years of experience diagnosing crop diseases in Indian agriculture. You are analyzing a photo taken by a farmer on their phone.
+
+Your expertise covers: fungal, bacterial, viral diseases, nutrient deficiencies, pest damage, abiotic stress, and environmental damage across all major Indian crops.
+
+ANALYZE the image with clinical precision and respond in ${lang}.
+
+FORMAT your response EXACTLY as follows:
+
+📋 SCAN REPORT
+━━━━━━━━━━━━━━
+
+🔍 IDENTIFIED CONDITION: [Disease/Deficiency name]
+📊 CONFIDENCE: [High/Medium/Low]
+⚠️ SEVERITY: [Mild / Moderate / Severe / Critical]
+
+📝 DIAGNOSIS:
+[2-3 sentences explaining what you see in the image — leaf spots, discoloration, wilting patterns, pest marks, etc.]
+
+💊 TREATMENT PROTOCOL:
+1. [Immediate action — specific product name available in Indian agri shops, dosage, application method]
+2. [Follow-up treatment in 3-5 days if needed]
+3. [Organic/natural alternative if available]
+
+🛡️ PREVENTION (Next 15 days):
+• [Preventive step 1]
+• [Preventive step 2]
+• [Preventive step 3]
+
+💰 ESTIMATED COST: ₹[amount range] for treatment
+📅 RECOVERY TIME: [X days/weeks with proper treatment]
+
+⚡ URGENCY: [🔴 TREAT TODAY / 🟡 WITHIN 3 DAYS / 🟢 MONITOR]
+
+RULES:
+- If the image is NOT a crop/plant, say "This doesn't appear to be a crop image. Please take a clear photo of the affected plant leaves, stems, or fruit."
+- If image quality is too poor, ask for a better photo.  
+- Always recommend specific product names available in Indian agricultural supply shops.
+- Use simple farmer-friendly language. The farmer may be semi-literate.
+- If unsure, say so honestly and recommend visiting the nearest Krishi Vigyan Kendra (KVK).`
+
+  const userMsg = `Please analyze this crop image for any diseases, pests, or deficiencies.${
+    params.cropType ? `\nCrop type: ${params.cropType}` : ''
+  }${
+    params.additionalNotes ? `\nFarmer notes: ${params.additionalNotes}` : ''
+  }`
+
+  const client = getClient()
+  if (!client) {
+    return `📋 SCAN REPORT (Demo Mode)
+━━━━━━━━━━━━━━
+
+🔍 IDENTIFIED CONDITION: Leaf Blight (Demo)
+📊 CONFIDENCE: High
+⚠️ SEVERITY: Moderate
+
+📝 DIAGNOSIS:
+The leaves show characteristic brown spots with yellow halos, indicating early-stage fungal leaf blight. Pattern suggests Alternaria species infection, common during high humidity periods.
+
+💊 TREATMENT PROTOCOL:
+1. Spray Mancozeb 75% WP (2g/L water) immediately — available at any agri shop ₹120/250g
+2. Follow up with Carbendazim 50% WP (1g/L) after 5 days
+3. Organic: Neem oil spray (5ml/L) as preventive
+
+🛡️ PREVENTION:
+• Improve air circulation between plants
+• Avoid overhead irrigation — use drip/furrow
+• Remove and burn affected leaves
+
+💰 ESTIMATED COST: ₹200-350
+📅 RECOVERY TIME: 7-10 days
+⚡ URGENCY: 🟡 WITHIN 3 DAYS
+
+[Demo Mode — Add VITE_GEMINI_API_KEY for real AI analysis]`
+  }
+
+  const model = client.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    systemInstruction: system,
+  })
+
+  const base64Data = params.base64Image.split(',')[1] || params.base64Image
+  const mimeType = params.base64Image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg'
+
+  const parts: any[] = [
+    { text: userMsg },
+    { inlineData: { data: base64Data, mimeType } }
+  ]
+
+  const result = await model.generateContent(parts)
+  return result.response.text()
+}
+

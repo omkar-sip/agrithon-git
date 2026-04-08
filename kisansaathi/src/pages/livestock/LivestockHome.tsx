@@ -1,14 +1,14 @@
-﻿import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 
 const QUICK_ACTIONS = [
-  { label: 'Animal Diary',     emoji: '🐄', path: '/livestock', color: 'bg-harvest-50 text-harvest-700', desc: 'Log health events' },
-  { label: 'Vet Connect',      emoji: '💉', path: '/livestock', color: 'bg-red-50 text-danger-700',      desc: 'AI diagnosis + vet' },
-  { label: 'Feed Calculator',  emoji: '🌾', path: '/livestock', color: 'bg-forest-50 text-forest-700',   desc: 'Daily feed plan' },
-  { label: 'Milk Diary',       emoji: '🥛', path: '/livestock', color: 'bg-sky-50 text-sky-700',         desc: 'Track yield & quality' },
-  { label: 'Insurance',        emoji: '🛡️', path: '/livestock', color: 'bg-orange-50 text-mango-700',   desc: 'Livestock Suraksha' },
-  { label: 'Market Prices',    emoji: '📊', path: '/livestock', color: 'bg-harvest-50 text-harvest-700', desc: 'Animal mandi rates' },
+  { label: 'Health Track',     emoji: '🐄', path: '/livestock/health',   color: 'bg-harvest-50 text-harvest-700', desc: 'Pashu Diary' },
+  { label: 'Vet Connect',      emoji: '🩺', path: '/livestock/vet',      color: 'bg-red-50 text-danger-700',      desc: 'Doctor Consult' },
+  { label: 'Feed Calculator',  emoji: '🌾', path: '/livestock/feed',     color: 'bg-forest-50 text-forest-700',   desc: 'Aahar Plan' },
+  { label: 'Milk Log',         emoji: '🥛', path: '/livestock/milk',     color: 'bg-sky-50 text-sky-700',         desc: 'Doodh Diary' },
+  { label: 'Insurance',        emoji: '🛡️', path: '/livestock/insurance',color: 'bg-orange-50 text-mango-700',    desc: 'Bima Claims' },
+  { label: 'Mandi Prices',     emoji: '📈', path: '/livestock/mandi',    color: 'bg-harvest-50 text-harvest-700', desc: 'Pashu Bazar' },
 ]
 
 const MOCK_ANIMALS = [

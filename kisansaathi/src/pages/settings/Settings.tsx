@@ -35,7 +35,7 @@ export default function Settings() {
       </h1>
 
       {/* ── Profile card ───────────────────────────────────────────── */}
-      <div className="bg-forest-900 text-white rounded-2xl p-5">
+      <div className="bg-brand-600 text-white rounded-2xl p-5">
         <div className="flex items-center gap-4">
           {farmer?.photoURL ? (
             <img
@@ -52,11 +52,11 @@ export default function Settings() {
             <p className="font-bold text-lg leading-tight truncate" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
               {farmer?.name || 'Guest Farmer'}
             </p>
-            <p className="text-forest-300 text-sm truncate">
+            <p className="text-brand-200 text-sm truncate">
               {farmer?.email || (farmer?.phone ? `+91 ${farmer.phone}` : 'Not logged in')}
             </p>
             {farmer?.village && (
-              <p className="text-forest-400 text-xs mt-0.5 truncate">
+              <p className="text-brand-300 text-xs mt-0.5 truncate">
                 {farmer.village}{farmer.district ? `, ${farmer.district}` : ''}
               </p>
             )}
@@ -72,10 +72,10 @@ export default function Settings() {
         {/* Auth method badge */}
         {authProvider && authProvider !== 'guest' && (
           <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
-            <Shield size={13} className="text-forest-300" />
-            <span className="text-xs text-forest-300">
+            <Shield size={13} className="text-brand-200" />
+            <span className="text-xs text-brand-200">
               Signed in with{' '}
-              <span className="font-semibold text-forest-200 capitalize">{authProvider}</span>
+              <span className="font-semibold text-white capitalize">{authProvider}</span>
             </span>
           </div>
         )}

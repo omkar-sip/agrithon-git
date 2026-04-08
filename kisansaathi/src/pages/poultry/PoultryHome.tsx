@@ -1,14 +1,13 @@
-﻿import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 
 const QUICK_ACTIONS = [
-  { label: 'Flock Diary',    emoji: '🐓', color: 'bg-orange-50 text-mango-700', desc: 'Daily flock records' },
-  { label: 'Vaccination',    emoji: '💉', color: 'bg-red-50 text-danger-700',   desc: 'Schedule & reminders' },
-  { label: 'Egg Log',        emoji: '🥚', color: 'bg-harvest-50 text-harvest-700', desc: 'Production tracker' },
-  { label: 'Feed Store',     emoji: '🌾', color: 'bg-forest-50 text-forest-700', desc: 'Inventory & cost' },
-  { label: 'Disease Alerts', emoji: '🚨', color: 'bg-red-50 text-danger-700',   desc: 'AI outbreak detection' },
-  { label: 'Find Buyers',    emoji: '🛒', color: 'bg-sky-50 text-sky-700',      desc: 'Connect to buyers' },
+  { label: 'Flock Diary',    emoji: '📋', path: '/poultry/flock',   color: 'bg-harvest-50 text-harvest-700', desc: 'Batch Track' },
+  { label: 'Feed Manage',    emoji: '🌾', path: '/poultry/feed',    color: 'bg-orange-50 text-orange-700', desc: 'Inventory' },
+  { label: 'Egg Log',        emoji: '🥚', path: '/poultry/egg',     color: 'bg-yellow-50 text-yellow-700', desc: 'Production' },
+  { label: 'Market Prices',  emoji: '📊', path: '/poultry/market',  color: 'bg-sky-50 text-sky-700',      desc: 'Live Rates' },
+  { label: 'Disease Scan',   emoji: '🚨', path: '/poultry/disease', color: 'bg-red-50 text-danger-700',   desc: 'Detection' },
 ]
 
 const MOCK_FLOCKS = [
@@ -25,7 +24,7 @@ export default function PoultryHome() {
 
         <div className="grid grid-cols-3 gap-2">
           {QUICK_ACTIONS.map((a, i) => (
-            <button key={i} className={`${a.color} rounded-2xl p-3 flex flex-col items-center gap-1 min-h-[90px] justify-center shadow-card active:scale-95 transition-transform`}>
+            <button key={i} onClick={() => navigate(a.path)} className={`${a.color} rounded-2xl p-3 flex flex-col items-center gap-1 min-h-[90px] justify-center shadow-card active:scale-95 transition-transform`}>
               <span className="text-3xl">{a.emoji}</span>
               <span className="text-xs font-bold text-center leading-tight">{a.label}</span>
               <span className="text-[10px] text-center opacity-60">{a.desc}</span>

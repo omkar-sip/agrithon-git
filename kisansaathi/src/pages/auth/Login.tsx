@@ -1,8 +1,8 @@
-// src/pages/auth/Login.tsx — Google + Email + Phone OTP
+// src/pages/auth/Login.tsx — v3 Phone-first, orange theme, farmer illustration
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Phone, Eye, EyeOff, ArrowRight, ChevronLeft, AlertCircle } from 'lucide-react'
+import { Mail, Phone, Eye, EyeOff, ArrowRight, ChevronLeft, AlertCircle, Mic } from 'lucide-react'
 import {
   signInWithPopup,
   createUserWithEmailAndPassword,
@@ -19,11 +19,23 @@ type Screen = 'main' | 'email' | 'phone' | 'otp'
 type EmailMode = 'signin' | 'signup'
 
 const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-    <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-    <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
-    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
+  <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
+    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4" />
+    <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
+    <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05" />
+    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335" />
+  </svg>
+)
+
+const FacebookIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+  </svg>
+)
+
+const AppleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000">
+    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
   </svg>
 )
 
@@ -33,28 +45,41 @@ export default function Login() {
   const navigate = useNavigate()
   const { setAuthenticated, setGuest } = useAuthStore()
 
-  const [screen, setScreen]       = useState<Screen>('main')
+  const [screen, setScreen] = useState<Screen>('main')
   const [emailMode, setEmailMode] = useState<EmailMode>('signin')
-  const [email, setEmail]         = useState('')
-  const [password, setPassword]   = useState('')
-  const [showPwd, setShowPwd]     = useState(false)
-  const [phone, setPhone]         = useState('')
-  const [otp, setOtp]             = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const clearError = () => setError('')
 
-  // ── Google Sign-In ────────────────────────────────────────────────
+  const handleFacebook = async () => {
+    setLoading(true); clearError()
+    setTimeout(() => {
+      setAuthenticated({
+        uid: 'fbid_demo_' + Math.floor(Math.random() * 10000),
+        name: 'Facebook Farmer',
+        provider: 'google',
+      })
+      toast.success('Welcome, Facebook Farmer!')
+      setLoading(false)
+      navigate('/profile')
+    }, 1000)
+  }
+
   const handleGoogle = async () => {
     setLoading(true); clearError()
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user
       setAuthenticated({
-        uid:      user.uid,
-        name:     user.displayName || 'Farmer',
-        email:    user.email || undefined,
+        uid: user.uid,
+        name: user.displayName || 'Farmer',
+        email: user.email || undefined,
         photoURL: user.photoURL || undefined,
         provider: 'google',
       })
@@ -67,7 +92,6 @@ export default function Login() {
     } finally { setLoading(false) }
   }
 
-  // ── Email Sign-In / Sign-Up ───────────────────────────────────────
   const handleEmail = async () => {
     if (!email || !password) { setError('Please fill in all fields'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return }
@@ -82,8 +106,8 @@ export default function Login() {
         user = cred.user
       }
       setAuthenticated({
-        uid:   user.uid,
-        name:  user.displayName || email.split('@')[0],
+        uid: user.uid,
+        name: user.displayName || email.split('@')[0],
         email: user.email || undefined,
         provider: 'email',
       })
@@ -91,17 +115,16 @@ export default function Login() {
       navigate('/profile')
     } catch (e: any) {
       const msg: Record<string, string> = {
-        'auth/user-not-found':      'No account found with this email.',
-        'auth/wrong-password':      'Incorrect password.',
-        'auth/email-already-in-use':'An account with this email already exists.',
-        'auth/invalid-email':       'Please enter a valid email address.',
-        'auth/too-many-requests':   'Too many attempts. Please try again later.',
+        'auth/user-not-found': 'No account found with this email.',
+        'auth/wrong-password': 'Incorrect password.',
+        'auth/email-already-in-use': 'An account already exists.',
+        'auth/invalid-email': 'Please enter a valid email.',
+        'auth/too-many-requests': 'Too many attempts. Try again later.',
       }
-      setError(msg[e.code] || 'Authentication failed. Please try again.')
+      setError(msg[e.code] || 'Authentication failed.')
     } finally { setLoading(false) }
   }
 
-  // ── Phone OTP ─────────────────────────────────────────────────────
   const handleSendOtp = async () => {
     if (phone.length < 10) { setError('Enter a valid 10-digit number'); return }
     setLoading(true); clearError()
@@ -110,7 +133,7 @@ export default function Login() {
       confirmationResult = await signInWithPhoneNumber(auth, `+91${phone}`, recaptcha)
       setScreen('otp')
       toast.success(`OTP sent to +91 ${phone}`)
-    } catch { setError('Failed to send OTP. Check the number and try again.') }
+    } catch { setError('Failed to send OTP.') }
     finally { setLoading(false) }
   }
 
@@ -119,233 +142,235 @@ export default function Login() {
     setLoading(true); clearError()
     try {
       const result = await confirmationResult.confirm(otp)
-      const user = result.user
-      setAuthenticated({ uid: user.uid, name: 'Farmer', phone, provider: 'phone' })
+      setAuthenticated({ uid: result.user.uid, name: 'Farmer', phone, provider: 'phone' })
       toast.success('Phone verified!')
       navigate('/profile')
-    } catch { setError('Incorrect OTP. Please try again.') }
+    } catch { setError('Incorrect OTP.') }
     finally { setLoading(false) }
   }
 
   return (
-    <div className="min-h-screen bg-forest-900 flex flex-col">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
+    <div className="page-root bg-white">
+      <div id="recaptcha-container" />
 
-      {/* Header */}
-      <div className="relative pt-16 pb-8 px-6 text-center">
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <div className="text-5xl mb-3 select-none">🌾</div>
-          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-            Sarpanch AI
-          </h1>
-          <p className="text-forest-300 text-sm mt-1">Your Personal Farming Advisor</p>
-        </motion.div>
-      </div>
+      <AnimatePresence mode="wait">
 
-      {/* Card */}
-      <div className="flex-1 bg-white rounded-t-3xl px-5 pt-6 pb-8 shadow-modal">
-        <div id="recaptcha-container" />
+        {/* ── Main Screen — Phone-first ──────────────────────────── */}
+        {screen === 'main' && (
+          <motion.div key="main"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col overflow-y-auto no-scrollbar"
+          >
+            {/* Back button */}
+            <div className="px-4 pt-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={20} className="text-neutral-600" />
+              </button>
+            </div>
 
-        <AnimatePresence mode="wait">
+            {/* Illustration */}
+            <div className="flex justify-center py-6">
+              <img
+                src="/farmer-illustration.png"
+                alt="Farmer"
+                className="w-52 h-52 object-contain"
+              />
+            </div>
 
-          {/* ── Main auth options ──────────────────────────────── */}
-          {screen === 'main' && (
-            <motion.div key="main"
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
-            >
-              <h2 className="text-xl font-bold text-neutral-900 mb-1" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                Sign in to your account
-              </h2>
-              <p className="text-sm text-neutral-500 mb-6">
-                New to Sarpanch AI? We'll create your account automatically.
+            {/* Content */}
+            <div className="px-6 flex-1 flex flex-col">
+              <h1 className="text-2xl font-bold text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                Login/Sign Up
+              </h1>
+              <p className="text-sm text-neutral-500 mt-1 mb-6">
+                Enter your mobile number to receive a 6-digit code
               </p>
 
-              <div className="space-y-3">
-                {/* Google */}
-                <button id="google-signin-btn" onClick={handleGoogle} disabled={loading}
-                  className="btn-google">
-                  <GoogleIcon />
-                  <span className="font-semibold">Continue with Google</span>
-                </button>
-
-                {/* Email */}
-                <button id="email-signin-btn" onClick={() => { setScreen('email'); clearError() }}
-                  className="btn btn-secondary w-full">
-                  <Mail size={16} className="text-neutral-500" />
-                  <span>Continue with Email</span>
-                </button>
-
-                {/* Phone */}
-                <button id="phone-signin-btn" onClick={() => { setScreen('phone'); clearError() }}
-                  className="btn btn-secondary w-full">
-                  <Phone size={16} className="text-neutral-500" />
-                  <span>Continue with Mobile OTP</span>
-                </button>
-              </div>
-
-              <div className="divider my-5"><span>or</span></div>
-
-              <button id="guest-btn" onClick={() => { setGuest(); navigate('/') }}
-                className="btn-ghost w-full text-neutral-400 text-sm">
-                Explore without signing in →
-              </button>
-
-              <p className="text-center text-xs text-neutral-400 mt-6 leading-relaxed">
-                By continuing, you agree to our Terms of Service and Privacy Policy.
-              </p>
-            </motion.div>
-          )}
-
-          {/* ── Email form ─────────────────────────────────────── */}
-          {screen === 'email' && (
-            <motion.div key="email"
-              initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }}
-            >
-              <button onClick={() => { setScreen('main'); clearError() }}
-                className="flex items-center gap-1 text-sm text-neutral-500 mb-4 -ml-1 btn-ghost min-h-fit px-2 py-1">
-                <ChevronLeft size={16} /> Back
-              </button>
-
-              {/* Tabs */}
-              <div className="flex bg-neutral-100 rounded-xl p-1 mb-5">
-                {(['signin', 'signup'] as EmailMode[]).map(m => (
-                  <button key={m} onClick={() => { setEmailMode(m); clearError() }}
-                    className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      emailMode === m ? 'bg-white text-neutral-900 shadow-card' : 'text-neutral-500'
-                    }`}>
-                    {m === 'signin' ? 'Sign In' : 'Create Account'}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="input-label">Email address</label>
-                  <input id="email-input" type="email" autoComplete="email"
-                    value={email} onChange={e => { setEmail(e.target.value); clearError() }}
-                    placeholder="you@example.com" className="input" />
-                </div>
-                <div>
-                  <label className="input-label">Password</label>
-                  <div className="relative">
-                    <input id="password-input" type={showPwd ? 'text' : 'password'}
-                      autoComplete={emailMode === 'signup' ? 'new-password' : 'current-password'}
-                      value={password} onChange={e => { setPassword(e.target.value); clearError() }}
-                      placeholder={emailMode === 'signup' ? 'Min. 6 characters' : 'Enter password'}
-                      className="input pr-12" />
-                    <button type="button" onClick={() => setShowPwd(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 p-1 min-h-fit">
-                      {showPwd ? <EyeOff size={16}/> : <Eye size={16}/>}
+              {/* Phone Input */}
+              <div>
+                <p className="text-xs font-semibold text-neutral-600 mb-1.5">Phone Number</p>
+                <div className="flex gap-2">
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-xl px-3 flex items-center gap-1.5 text-sm font-medium text-neutral-700 shrink-0">
+                    🇮🇳 <span className="text-neutral-400">▾</span>
+                  </div>
+                  <div className="flex-1 relative">
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={phone}
+                      onChange={e => { setPhone(e.target.value.replace(/\D/g, '')); clearError() }}
+                      placeholder="9988776655"
+                      className="input pr-10"
+                    />
+                    <button className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-neutral-200 flex items-center justify-center min-h-fit">
+                      <Mic size={12} className="text-neutral-500" />
                     </button>
                   </div>
                 </div>
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2.5 mt-4">
+                <div className="flex items-center gap-2 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2.5 mt-3">
                   <AlertCircle size={14} className="text-danger-500 shrink-0" />
                   <p className="text-sm text-danger-700">{error}</p>
                 </div>
               )}
 
-              <button id="email-submit-btn" onClick={handleEmail} disabled={loading}
-                className="btn-primary w-full mt-5">
+              {/* Continue Button */}
+              <button
+                onClick={handleSendOtp}
+                disabled={loading || phone.length < 10}
+                className="btn-brand mt-5"
+              >
                 {loading ? (
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>{emailMode === 'signin' ? 'Sign In' : 'Create Account'} <ArrowRight size={16}/></>
-                )}
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : 'Continue'}
               </button>
-            </motion.div>
-          )}
 
-          {/* ── Phone form ─────────────────────────────────────── */}
-          {screen === 'phone' && (
-            <motion.div key="phone"
-              initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }}
-            >
-              <button onClick={() => { setScreen('main'); clearError() }}
-                className="flex items-center gap-1 text-sm text-neutral-500 mb-4 -ml-1 btn-ghost min-h-fit px-2 py-1">
-                <ChevronLeft size={16} /> Back
-              </button>
-              <h2 className="text-xl font-bold text-neutral-900 mb-1" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                Enter your mobile number
-              </h2>
-              <p className="text-sm text-neutral-500 mb-5">We'll send a 6-digit OTP to verify</p>
-
-              <div className="flex gap-2">
-                <div className="bg-neutral-100 rounded-xl px-3 flex items-center text-neutral-600 font-mono text-base shrink-0 min-h-[48px] border border-neutral-200">
-                  🇮🇳 +91
-                </div>
-                <input id="phone-input" type="tel" inputMode="numeric" maxLength={10}
-                  value={phone} onChange={e => { setPhone(e.target.value.replace(/\D/g, '')); clearError() }}
-                  placeholder="10-digit mobile number" className="input flex-1" />
+              {/* Or continue with */}
+              <div className="divider my-6">
+                <span className="text-neutral-400 text-xs">Or Continue With</span>
               </div>
 
-              {error && (
-                <div className="flex items-center gap-2 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2.5 mt-4">
-                  <AlertCircle size={14} className="text-danger-500 shrink-0" />
-                  <p className="text-sm text-danger-700">{error}</p>
+              {/* Social buttons */}
+              <div className="flex justify-center gap-4 mb-6">
+                <button
+                  onClick={handleFacebook}
+                  disabled={loading}
+                  className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors active:scale-95"
+                >
+                  <FacebookIcon />
+                </button>
+                <button
+                  onClick={handleGoogle}
+                  disabled={loading}
+                  className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors active:scale-95"
+                >
+                  <GoogleIcon />
+                </button>
+                <button
+                  disabled={loading}
+                  className="w-14 h-14 rounded-xl border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition-colors active:scale-95"
+                  onClick={() => { setScreen('email'); clearError() }}
+                >
+                  <AppleIcon />
+                </button>
+              </div>
+
+              {/* Guest */}
+              <button
+                onClick={() => { setGuest(); navigate('/') }}
+                className="text-sm text-neutral-400 text-center hover:text-neutral-600 transition-colors mb-4"
+              >
+                Explore without signing in →
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Email form ──────────────────────────────────────────── */}
+        {screen === 'email' && (
+          <motion.div key="email"
+            initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col px-6 pt-6 overflow-y-auto no-scrollbar"
+          >
+            <button onClick={() => { setScreen('main'); clearError() }}
+              className="flex items-center gap-1 text-sm text-neutral-500 mb-6 btn-ghost min-h-fit px-0 py-1 w-fit">
+              <ChevronLeft size={16} /> Back
+            </button>
+
+            <div className="flex bg-neutral-100 rounded-xl p-1 mb-5">
+              {(['signin', 'signup'] as EmailMode[]).map(m => (
+                <button key={m} onClick={() => { setEmailMode(m); clearError() }}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${emailMode === m ? 'bg-white text-neutral-900 shadow-card' : 'text-neutral-500'}`}>
+                  {m === 'signin' ? 'Sign In' : 'Create Account'}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="input-label">Email address</label>
+                <input type="email" autoComplete="email"
+                  value={email} onChange={e => { setEmail(e.target.value); clearError() }}
+                  placeholder="you@example.com" className="input" />
+              </div>
+              <div>
+                <label className="input-label">Password</label>
+                <div className="relative">
+                  <input type={showPwd ? 'text' : 'password'}
+                    value={password} onChange={e => { setPassword(e.target.value); clearError() }}
+                    placeholder={emailMode === 'signup' ? 'Min. 6 characters' : 'Enter password'}
+                    className="input pr-12" />
+                  <button type="button" onClick={() => setShowPwd(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 p-1 min-h-fit">
+                    {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
-              )}
+              </div>
+            </div>
 
-              <button id="send-otp-btn" onClick={handleSendOtp}
-                disabled={loading || phone.length < 10} className="btn-primary w-full mt-5">
-                {loading
-                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  : <>Send OTP <ArrowRight size={16}/></>}
-              </button>
-            </motion.div>
-          )}
+            {error && (
+              <div className="flex items-center gap-2 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2.5 mt-4">
+                <AlertCircle size={14} className="text-danger-500 shrink-0" />
+                <p className="text-sm text-danger-700">{error}</p>
+              </div>
+            )}
 
-          {/* ── OTP Verify ─────────────────────────────────────── */}
-          {screen === 'otp' && (
-            <motion.div key="otp"
-              initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }}
-            >
-              <button onClick={() => { setScreen('phone'); clearError() }}
-                className="flex items-center gap-1 text-sm text-neutral-500 mb-4 -ml-1 btn-ghost min-h-fit px-2 py-1">
-                <ChevronLeft size={16} /> Change Number
-              </button>
-              <h2 className="text-xl font-bold text-neutral-900 mb-1" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                Enter the OTP
-              </h2>
-              <p className="text-sm text-neutral-500 mb-5">
-                Sent to <span className="font-semibold text-neutral-700">+91 {phone}</span>
-              </p>
+            <button onClick={handleEmail} disabled={loading} className="btn-brand mt-6">
+              {loading ? (
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (<>{emailMode === 'signin' ? 'Sign In' : 'Create Account'} <ArrowRight size={16} /></>)}
+            </button>
+          </motion.div>
+        )}
 
-              <input id="otp-input" type="tel" inputMode="numeric" maxLength={6}
-                value={otp} onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); clearError() }}
-                placeholder="6-digit OTP"
-                className="input text-center text-2xl font-mono tracking-[0.5em]" />
+        {/* ── OTP Screen ──────────────────────────────────────────── */}
+        {screen === 'otp' && (
+          <motion.div key="otp"
+            initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col px-6 pt-6 overflow-y-auto no-scrollbar"
+          >
+            <button onClick={() => { setScreen('main'); clearError() }}
+              className="flex items-center gap-1 text-sm text-neutral-500 mb-6 btn-ghost min-h-fit px-0 py-1 w-fit">
+              <ChevronLeft size={16} /> Change Number
+            </button>
 
-              {error && (
-                <div className="flex items-center gap-2 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2.5 mt-4">
-                  <AlertCircle size={14} className="text-danger-500 shrink-0" />
-                  <p className="text-sm text-danger-700">{error}</p>
-                </div>
-              )}
+            <h2 className="text-xl font-bold text-neutral-900 mb-1" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+              Enter the OTP
+            </h2>
+            <p className="text-sm text-neutral-500 mb-6">
+              Sent to <span className="font-semibold text-neutral-700">+91 {phone}</span>
+            </p>
 
-              <button id="verify-otp-btn" onClick={handleVerifyOtp}
-                disabled={loading || otp.length < 6} className="btn-primary w-full mt-5">
-                {loading
-                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  : 'Verify & Continue'}
-              </button>
-            </motion.div>
-          )}
+            <input type="tel" inputMode="numeric" maxLength={6}
+              value={otp} onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); clearError() }}
+              placeholder="6-digit OTP"
+              className="input text-center text-2xl font-mono tracking-[0.5em]" />
 
-        </AnimatePresence>
-      </div>
+            {error && (
+              <div className="flex items-center gap-2 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2.5 mt-4">
+                <AlertCircle size={14} className="text-danger-500 shrink-0" />
+                <p className="text-sm text-danger-700">{error}</p>
+              </div>
+            )}
+
+            <button onClick={handleVerifyOtp} disabled={loading || otp.length < 6} className="btn-brand mt-6">
+              {loading ? (
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : 'Verify & Continue'}
+            </button>
+          </motion.div>
+        )}
+
+      </AnimatePresence>
     </div>
   )
 }

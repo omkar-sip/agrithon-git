@@ -1,6 +1,6 @@
 // src/components/layout/BottomNav.tsx — v3 with center crop scanner button
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, Mountain, ShoppingCart, User, ScanLine } from 'lucide-react'
+import { Home, Mountain, ShoppingCart, User, ScanLine, Tractor } from 'lucide-react'
 import clsx from 'clsx'
 
 const NAV_ITEMS = [
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { label: 'Fields',  icon: Mountain,     path: '/fields',     exact: false },
   // Center scanner button is rendered separately
   { label: 'Market',  icon: ShoppingCart,  path: '/marketplace', exact: false },
+  { label: 'Farm Equipment Rental', icon: Tractor, path: '/farm-rental', exact: false },
   { label: 'Profile', icon: User,          path: '/settings',    exact: false },
 ]
 
@@ -35,7 +36,8 @@ export default function BottomNav() {
                   className="transition-all duration-150"
                 />
                 <span className={clsx(
-                  'text-[10px] font-medium transition-all duration-150',
+                  'font-medium transition-all duration-150 text-center',
+                  label === 'Farm Equipment Rental' ? 'text-[8px] leading-tight max-w-[56px]' : 'text-[10px]',
                   isActive ? 'text-brand-600' : 'text-neutral-400'
                 )}>
                   {label}
@@ -77,7 +79,8 @@ export default function BottomNav() {
                   className="transition-all duration-150"
                 />
                 <span className={clsx(
-                  'text-[10px] font-medium transition-all duration-150',
+                  'font-medium transition-all duration-150 text-center',
+                  label === 'Farm Equipment Rental' ? 'text-[8px] leading-tight max-w-[56px]' : 'text-[10px]',
                   isActive ? 'text-brand-600' : 'text-neutral-400'
                 )}>
                   {label}

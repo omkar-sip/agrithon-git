@@ -59,6 +59,8 @@ const AddCrop          = lazy(() => import('../pages/fields/AddCrop'))
 const MyTasks          = lazy(() => import('../pages/fields/MyTasks'))
 const Marketplace      = lazy(() => import('../pages/market/Marketplace'))
 const CropScanner      = lazy(() => import('../pages/scanner/CropScanner'))
+const FarmRentalHome   = lazy(() => import('../pages/farm-rental/FarmRentalHome'))
+const FarmRentalCategory = lazy(() => import('../pages/farm-rental/FarmRentalCategory'))
 
 // ─── Loading fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -103,6 +105,8 @@ const router = createBrowserRouter([
 
       // Marketplace
       { path: 'marketplace',     element: <S><Marketplace /></S> },
+      { path: 'farm-rental',     element: <S><FarmRentalHome /></S> },
+      { path: 'farm-rental/:categoryId', element: <S><FarmRentalCategory /></S> },
 
       // Crop farming
       { path: 'crop',           element: <S><CropHome /></S> },

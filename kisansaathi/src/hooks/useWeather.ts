@@ -1,33 +1,36 @@
-// src/hooks/useWeather.ts
 import { useEffect } from 'react'
+import { useAuthStore } from '../store/useAuthStore'
 import { useWeatherStore } from '../store/useWeatherStore'
 import { useGeolocation } from './useGeolocation'
-import { fetchCurrentWeather, fetchForecast, getMockWeather } from '../services/weatherService'
-import { isOlderThan } from '../utils/dateHelper'
+import { DEFAULT_LOCATION_COORDS } from '../services/weatherService'
 
 export function useWeather() {
-  const { current, forecast, lastFetched, setCurrent, setForecast } = useWeatherStore()
-  const { coords } = useGeolocation()
+  const farmer = useAuthStore(s => s.farmer)
+  const {
+    current,
+    forecast,
+    alerts,
+    advisorySummary,
+    isLoading,
+    isAdvisoryLoading,
+    error,
+    fetchAndSetWeather,
+  } = useWeatherStore()
+  const { coords: liveCoords } = useGeolocation(!farmer?.coords)
 
-  const needsRefresh = !lastFetched || isOlderThan(lastFetched, 1) // Refresh after 1 hour
+  const coords = farmer?.coords ?? liveCoords ?? DEFAULT_LOCATION_COORDS
 
   useEffect(() => {
-    if (!needsRefresh) return
+    void fetchAndSetWeather(coords.lat, coords.lon)
+  }, [coords.lat, coords.lon, fetchAndSetWeather])
 
-    if (!coords) {
-      // Use mock weather in dev
-      setCurrent(getMockWeather())
-      return
-    }
-
-    fetchCurrentWeather(coords.lat, coords.lon)
-      .then(setCurrent)
-      .catch(() => setCurrent(getMockWeather()))
-
-    fetchForecast(coords.lat, coords.lon)
-      .then(setForecast)
-      .catch(() => {})
-  }, [coords, needsRefresh])
-
-  return { current, forecast, isLoading: !current }
+  return {
+    current,
+    forecast,
+    alerts,
+    advisorySummary,
+    isLoading,
+    isAdvisoryLoading,
+    error,
+  }
 }

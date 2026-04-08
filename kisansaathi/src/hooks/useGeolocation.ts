@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 
 interface Coords { lat: number; lon: number; accuracy?: number }
 
-export function useGeolocation() {
+export function useGeolocation(autoRequest = true) {
   const [coords, setCoords] = useState<Coords | null>(null)
   const [error, setError]   = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -27,7 +27,11 @@ export function useGeolocation() {
     )
   }
 
-  useEffect(() => { requestLocation() }, [])
+  useEffect(() => {
+    if (!autoRequest) return
+    const timer = window.setTimeout(() => requestLocation(), 0)
+    return () => window.clearTimeout(timer)
+  }, [autoRequest])
 
   return { coords, error, loading, retry: requestLocation }
 }

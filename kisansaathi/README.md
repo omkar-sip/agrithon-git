@@ -1,6 +1,23 @@
-# 🌾 KisanSaathi
+# Sarpanch AI
 
-> **KisanSaathi** is an intelligent, digital companion for the modern farmer. Designed as a Progressive Web Application (PWA), it aims to empower farmers with actionable insights, market connectivity, and tailored advisory across crop farming, livestock, poultry, and fisheries.
+**An Intelligent, Digital Companion for the Modern Farmer**
+
+Sarpanch AI leverages modern Web Technologies and Artificial Intelligence to provide real-time agricultural advisories. Designed as a Progressive Web Application (PWA), it aims to empower farmers with actionable insights, market connectivity, and tailored advisory across crop farming, livestock, poultry, and fisheries. The platform is built from the ground up to be accessible, scalable, and tailored to the unique physiological, temporal, and geographical needs of farmers.
+
+![Frontend](https://img.shields.io/badge/FRONTEND-LIVE_ON_VERCEL-00C7B7?style=for-the-badge&logo=vercel&logoColor=white) ![Backend](https://img.shields.io/badge/BACKEND-FIREBASE-FFCA28?style=for-the-badge&logo=firebase&logoColor=black) ![AI](https://img.shields.io/badge/AI_MODELS-GEMINI_PRO-8E75B2?style=for-the-badge&logo=google&logoColor=white) 
+
+![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/TailwindCSS_3-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) ![React Router](https://img.shields.io/badge/React_Router_v7-CA4245?style=for-the-badge&logo=react-router&logoColor=white)
+![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white) ![Zustand](https://img.shields.io/badge/Zustand-764ABC?style=for-the-badge&logo=react&logoColor=white) ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black) ![Google Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google&logoColor=white) ![Hugging Face](https://img.shields.io/badge/Hugging_Face_(Planned)-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)
+
+---
+
+> [!NOTE]
+> 🚧 **Beta Access & PWA Notice**
+> 
+> The current deployed version is operating as an initial **Beta Release** focusing on the foundational AI advisory systems.
+> 
+> - **Offline Capability**: Features such as IDB-Keyval caching and PWA service workers are active, but core AI features currently rely on internet access for the **Gemini API**.
+> - **Data Authenticity**: All agricultural inferences provided by SarpanchGPT and Crop Doctor are currently generated live via Cloud LLMs. 
 
 ---
 
@@ -9,23 +26,22 @@
 1. [🌍 Overview](#-overview)
 2. [🏗 Architecture](#-architecture)
 3. [📂 Folder Structure](#-folder-structure)
-4. [🛠 Tech Stack](#-tech-stack)
-5. [🤖 AI & Machine Learning Pipeline](#-ai--machine-learning-pipeline)
-6. [🚀 Planned Features & Roadmap](#-planned-features--roadmap)
-7. [🤝 Contributing](#-contributing)
-8. [📄 License](#-license)
+4. [🤖 AI & Machine Learning Pipeline](#-ai--machine-learning-pipeline)
+5. [🚀 Planned Features & Roadmap](#-planned-features--roadmap)
+6. [🤝 Contributing](#-contributing)
+7. [📄 License](#-license)
 
 ---
 
 ## 🌍 Overview
 
-KisanSaathi leverages modern Web Technologies and Artificial Intelligence to provide real-time agricultural advisories. The platform is designed from the ground up to be accessible, scalable, and tailored to the unique physiological, temporal, and geographical needs of farmers.
+The platform translates complex agricultural intelligence into actionable, accessible language tailored explicitly to local environments. By fusing Progressive Web Capabilities (PWA) with Generative AI, Sarpanch AI provides a native-app-like experience to democratize farming insights without the friction of large app store downloads.
 
 ---
 
 ## 🏗 Architecture
 
-KisanSaathi adopts a modular, component-driven Frontend architecture integrated with scalable APIs. The App mimics a native experience through its PWA configurations and features offline-first capabilities where possible.
+Sarpanch AI adopts a modular, component-driven Frontend architecture integrated with scalable cloud services. 
 
 ### Component Flow
 
@@ -40,10 +56,8 @@ KisanSaathi adopts a modular, component-driven Frontend architecture integrated 
 
 ## 📂 Folder Structure
 
-The project strictly follows a scalable module-based layout.
-
 ```text
-KisanSaathi/
+SarpanchAI/
 ├── src/                        # Main Application Code
 │   ├── assets/                 # Static files (Icons, Images, PWA Manifests)
 │   ├── components/             # Reusable UI Architecture
@@ -73,23 +87,6 @@ KisanSaathi/
 
 ---
 
-## 🛠 Tech Stack
-
-| Category | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend Framework** | [React 19](https://react.dev/) | UI library for creating isolated, interactive components |
-| **Build Tooling** | [Vite](https://vitejs.dev/) | Blazing fast HMR and optimized production bundles |
-| **Styling** | [Tailwind CSS 3](https://tailwindcss.com/) | Atomic utility classes for scalable, responsive design |
-| **UI Polish** | [Framer Motion](https://www.framer.com/motion/) | Smooth animations and native-like interactions |
-| **State Management** | [Zustand](https://github.com/pmndrs/zustand) | Bear-bones state management for React |
-| **Routing** | [React Router v7](https://reactrouter.com/) | Declarative application routing |
-| **Backend & Auth** | [Firebase](https://firebase.google.com/) | Authentication, Databases, and Storage |
-| **Local DB** | [IDB-Keyval](https://github.com/jakearchibald/idb-keyval/) | IndexedDB wrapper for simple persistent storage |
-| **GenAI (Current)**| [@google/generative-ai](https://ai.google.dev/) | Temporary integration for SarpanchGPT via Gemini API |
-| **PWA Support** | [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) | Service worker generation and manifest injection |
-
----
-
 ## 🤖 AI & Machine Learning Pipeline
 
 ### Emphasizing Offline Real-Time Models (Hugging Face)
@@ -109,7 +106,7 @@ While the initial iteration employs the **Google Gemini API** for advisory infer
 
 ## 🚀 Planned Features & Roadmap
 
-The following modules represent the crucial gaps waiting to be filled to transform **KisanSaathi** into a complete AgTech ecosystem.
+The following modules represent the crucial gaps waiting to be filled to transform **Sarpanch AI** into a complete AgTech ecosystem.
 
 ### Crop Farming – Things Still Missing
 

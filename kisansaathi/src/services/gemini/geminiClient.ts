@@ -1,6 +1,6 @@
 // src/services/gemini/geminiClient.ts
 // Gemini API client with feature-specific system prompts
-import { GoogleGenerativeAI, type GenerateContentResult } from '@google/generative-ai'
+import { GoogleGenerativeAI, type GenerateContentResult, type Part } from '@google/generative-ai'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
 
@@ -109,7 +109,7 @@ Symptoms: ${params.symptomsDescription}`
     const base64Data = params.base64Image.split(',')[1] || params.base64Image
     const mimeType = params.base64Image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg'
     
-    const parts: any[] = [
+    const parts: Part[] = [
       { text: user },
       { inlineData: { data: base64Data, mimeType } }
     ]
@@ -212,6 +212,38 @@ Temperature: ${params.temperature_C}°C`
 // ══════════════════════════════════════════════════════════════════════════════
 // FEATURE 6: Hyperlocal Alert Synthesizer
 // ══════════════════════════════════════════════════════════════════════════════
+export async function getWeatherAction(params: {
+  category: string
+  crops: string[]
+  waterSource?: string
+  location: string
+  currentWeather: string
+  forecast: string
+  language: string
+}): Promise<string> {
+  const lang = LANG_NAMES[params.language] || 'Hindi'
+  const system = `You are an agricultural weather advisory engine for Indian farmers.
+Respond in ${lang}.
+Use the weather data to produce hyper-local, actionable farm measures.
+Output ONLY valid JSON with this exact shape:
+{"summary":"one short weekly summary","days":[{"date":"YYYY-MM-DD","farmAction":"under 16 words","actionColor":"green|yellow|red"}],"alerts":[{"id":"short-id","type":"weather","severity":"green|yellow|red","title":"under 6 words","body":"under 14 words","farmAction":"under 14 words"}]}
+Rules:
+- Red means urgent action or avoid field work.
+- Yellow means caution and same-day planning.
+- Green means safe or good farming window.
+- Keep every action specific to the farmer category and likely crops.
+- Never include markdown or explanation.`
+
+  const user = `Category: ${params.category}
+Crops: ${params.crops.join(', ') || 'Not specified'}
+Water Source: ${params.waterSource || 'Not specified'}
+Location: ${params.location}
+Current Weather: ${params.currentWeather}
+Forecast: ${params.forecast}`
+
+  return generate(system, user)
+}
+
 export async function synthesizeHyperlocalAlerts(params: {
   district: string
   weatherData: string
@@ -348,7 +380,7 @@ The leaves show characteristic brown spots with yellow halos, indicating early-s
   const base64Data = params.base64Image.split(',')[1] || params.base64Image
   const mimeType = params.base64Image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg'
 
-  const parts: any[] = [
+  const parts: Part[] = [
     { text: userMsg },
     { inlineData: { data: base64Data, mimeType } }
   ]

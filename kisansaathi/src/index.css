@@ -44,6 +44,15 @@
     flex-direction: column;
   }
 
+  .leaflet-container {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #f5f7eb;
+  }
+
+  .leaflet-control-attribution {
+    font-size: 10px;
+  }
+
   /* Farmer-large touch targets */
   button,
   [role="button"],

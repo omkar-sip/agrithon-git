@@ -3,9 +3,14 @@ import { useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import Router from './router'
 import { useAppStore } from './store/useAppStore'
+import { useAuthStore } from './store/useAuthStore'
+import { useWeatherStore } from './store/useWeatherStore'
 
 export default function App() {
   const { setOnline } = useAppStore()
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const farmer = useAuthStore(s => s.farmer)
+  const fetchAndSetWeather = useWeatherStore(s => s.fetchAndSetWeather)
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -15,6 +20,11 @@ export default function App() {
     window.addEventListener('network-change', handler)
     return () => window.removeEventListener('network-change', handler)
   }, [setOnline])
+
+  useEffect(() => {
+    if (!isAuthenticated || !farmer?.coords) return
+    void fetchAndSetWeather(farmer.coords.lat, farmer.coords.lon)
+  }, [farmer?.coords, fetchAndSetWeather, isAuthenticated])
 
   return (
     <>

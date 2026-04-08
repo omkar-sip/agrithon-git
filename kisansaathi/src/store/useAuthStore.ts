@@ -8,6 +8,7 @@ export interface FarmerProfile {
   email?: string
   phone?: string
   photoURL?: string
+  coords: { lat: number; lon: number } | null
   state: string
   district: string
   village: string
@@ -44,7 +45,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       isAuthenticated: false,
       isGuest: false,
       authProvider: null,
@@ -64,6 +65,7 @@ export const useAuthStore = create<AuthState>()(
             email,
             phone,
             photoURL,
+            coords: null,
             state: '',
             district: '',
             village: '',

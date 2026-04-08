@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sarpanch AI — Offline</title>
+  <style>
+    body { margin: 0; background: #2D6A2D; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Segoe UI', sans-serif; }
+    .container { text-align: center; color: white; padding: 32px; }
+    .emoji { font-size: 80px; }
+    h1 { font-size: 28px; margin: 16px 0 8px; }
+    p { font-size: 16px; color: rgba(255,255,255,0.75); max-width: 280px; margin: 0 auto; }
+    .btn { margin-top: 32px; background: rgba(255,255,255,0.2); border: 2px solid white; color: white; padding: 16px 32px; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .btn:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="emoji">🌾</div>
+    <h1>Sarpanch AI</h1>
+    <p>You are offline. Please check your internet connection.</p>
+    <p style="margin-top:12px;font-size:14px;">Your locally saved data is still available. Connect to sync.</p>
+    <button class="btn" onclick="window.location.reload()">Try Again</button>
+  </div>
+</body>
+</html>

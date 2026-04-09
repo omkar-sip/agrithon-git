@@ -1,12 +1,42 @@
-// src/pages/scanner/CropScanner.tsx — Crop Disease Detection with Gemini Vision
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Camera, Upload, X, Loader2, FileText, Share2, Download } from 'lucide-react'
-import { analyzeCropImage } from '../../services/gemini/geminiClient'
+import {
+  ChevronLeft,
+  Camera,
+  Upload,
+  X,
+  Loader2,
+  Leaf,
+  Download,
+  Sparkles,
+} from 'lucide-react'
+import { loadMobileNet, validateLeafLikeImage } from '../../services/scanner/mobilenetLeaf'
+import { identifyPlantWithPlantNet } from '../../services/scanner/plantnetClient'
+import { analyzeLeafDiseaseStructured } from '../../services/gemini/geminiClient'
 import { useLanguageStore } from '../../store/useLanguageStore'
+import { apiAvailability } from '../../config/env'
+import type { LeafDiseaseAnalysis, PlantNetMatch } from '../../types/leafScanner'
+import { downloadLeafScanPdf } from '../../utils/leafScannerPdf'
 
-type ScanState = 'idle' | 'preview' | 'analyzing' | 'result'
+type Phase = 'idle' | 'preview' | 'preflight' | 'scanning' | 'ai' | 'result'
+
+const SCAN_STEP_LABELS = [
+  { emoji: '1/4', text: 'Scanning...' },
+  { emoji: '2/4', text: 'Analyzing...' },
+  { emoji: '3/4', text: 'Matching...' },
+  { emoji: '4/4', text: 'Predicting...' },
+] as const
+
+const STEP_MS = 1250
+
+const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+
+const getPlantNetConfidenceLabel = (score: number): string => {
+  if (score >= 0.6) return 'High'
+  if (score >= 0.25) return 'Moderate'
+  return 'Low'
+}
 
 export default function CropScanner() {
   const navigate = useNavigate()
@@ -14,56 +44,131 @@ export default function CropScanner() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
-  const [scanState, setScanState] = useState<ScanState>('idle')
-  const [imageData, setImageData] = useState<string | null>(null)
-  const [cropType, setCropType] = useState('')
-  const [notes, setNotes] = useState('')
-  const [report, setReport] = useState('')
+  const [phase, setPhase] = useState<Phase>('idle')
+  const [file, setFile] = useState<File | null>(null)
+  const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [preflightHint, setPreflightHint] = useState('')
+  const [scanStep, setScanStep] = useState(0)
+  const [plantMatch, setPlantMatch] = useState<PlantNetMatch | null>(null)
+  const [analysis, setAnalysis] = useState<LeafDiseaseAnalysis | null>(null)
+  const [modelWarmup, setModelWarmup] = useState(false)
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      setImageData(reader.result as string)
-      setScanState('preview')
-      setError('')
+  useEffect(() => {
+    let cancelled = false
+
+    loadMobileNet()
+      .then(() => {
+        if (!cancelled) setModelWarmup(true)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
     }
-    reader.readAsDataURL(file)
   }, [])
 
-  const handleAnalyze = async () => {
-    if (!imageData) return
-    setScanState('analyzing')
+  const reset = useCallback(() => {
+    setPhase('idle')
+    setFile(null)
+    setDataUrl(null)
     setError('')
+    setPreflightHint('')
+    setScanStep(0)
+    setPlantMatch(null)
+    setAnalysis(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
+  }, [])
+
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = event.target.files?.[0]
+    if (!picked || !picked.type.startsWith('image/')) return
+
+    setError('')
+    setFile(picked)
+    const reader = new FileReader()
+    reader.onload = () => {
+      setDataUrl(reader.result as string)
+      setPhase('preview')
+    }
+    reader.readAsDataURL(picked)
+  }, [])
+
+  const runPipeline = useCallback(async () => {
+    if (!dataUrl || !file) return
+    if (!apiAvailability.hasPlantnetKey) {
+      setError('Add VITE_PLANTNET_API_KEY to your .env file to identify plants.')
+      return
+    }
+
+    setError('')
+    setPhase('preflight')
+    setPreflightHint('Checking leaf photo with on-device AI...')
+
     try {
-      const result = await analyzeCropImage({
-        base64Image: imageData,
-        cropType: cropType || undefined,
-        additionalNotes: notes || undefined,
+      await loadMobileNet()
+      const leaf = await validateLeafLikeImage(dataUrl)
+      if (!leaf.ok) {
+        setError('Please upload a clear leaf image.')
+        setPhase('preview')
+        return
+      }
+
+      setPreflightHint('Identifying plant with PlantNet...')
+      const plant = await identifyPlantWithPlantNet(file)
+      setPlantMatch(plant)
+
+      setPhase('scanning')
+      setScanStep(0)
+      for (let index = 0; index < SCAN_STEP_LABELS.length; index += 1) {
+        setScanStep(index)
+        await delay(STEP_MS)
+      }
+
+      setPhase('ai')
+      const result = await analyzeLeafDiseaseStructured({
+        base64Image: dataUrl,
+        plantScientificName: plant.scientificName,
+        plantCommonName: plant.commonName,
+        plantNetScore: plant.score,
         language,
       })
-      setReport(result)
-      setScanState('result')
+      setAnalysis(result)
+      setPhase('result')
     } catch (err) {
-      setError('Analysis failed. Please try again.')
-      setScanState('preview')
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+
+      if (message.includes('Not a valid plant')) {
+        setError('Not a valid plant image.')
+      } else if (message.includes('Plant match confidence is too low')) {
+        setError('Plant match confidence is too low. Retake a clearer photo of one leaf and try again.')
+      } else if (message.includes('Invalid disease analysis JSON')) {
+        setError('The scan response was incomplete. Please try the scan once more with a clear photo of one leaf.')
+      } else {
+        setError(message)
+      }
+      setPhase('preview')
     }
+  }, [dataUrl, file, language])
+
+  const handleDownloadPdf = () => {
+    if (!dataUrl || !analysis || !plantMatch) return
+
+    void downloadLeafScanPdf({
+      imageDataUrl: dataUrl,
+      analysis,
+      plantLabel: `${plantMatch.commonName} (${plantMatch.scientificName})`,
+      plantScore: plantMatch.score,
+    })
   }
 
-  const handleReset = () => {
-    setImageData(null)
-    setReport('')
-    setCropType('')
-    setNotes('')
-    setError('')
-    setScanState('idle')
-  }
+  const showScanOverlay = phase === 'scanning' || phase === 'ai'
+  const scanningBusy = phase === 'preflight' || phase === 'scanning' || phase === 'ai'
 
   return (
-    <div className="page-root bg-neutral-900">
-      {/* Hidden file inputs */}
+    <div className="min-h-full flex flex-col bg-gradient-to-b from-brand-50 via-amber-50/40 to-neutral-50 text-neutral-800">
       <input
         ref={fileInputRef}
         type="file"
@@ -80,219 +185,282 @@ export default function CropScanner() {
         onChange={handleFileSelect}
       />
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 shrink-0">
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-brand-100 bg-white/90 backdrop-blur shrink-0"
+        style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+      >
         <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+          className="w-10 h-10 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center hover:bg-brand-100 transition-colors"
+          aria-label="Back"
         >
-          <ChevronLeft size={20} className="text-white" />
+          <ChevronLeft size={20} className="text-brand-800" />
         </button>
-        <h1 className="text-lg font-bold text-white" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-          🔬 Crop Disease Scanner
-        </h1>
-        <div className="w-10" />
-      </div>
+        <div className="text-center flex-1 px-2">
+          <h1 className="text-base font-bold text-brand-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+            Leaf Scanner
+          </h1>
+          <p className="text-[11px] text-neutral-500">AI crop health check</p>
+        </div>
+        <div className="w-10 flex justify-end">
+          {modelWarmup && (
+            <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-0.5">
+              <Sparkles size={12} /> Ready
+            </span>
+          )}
+        </div>
+      </header>
 
-      <AnimatePresence mode="wait">
-
-        {/* ── Idle State — Camera viewfinder ──────────────────── */}
-        {scanState === 'idle' && (
-          <motion.div
-            key="idle"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col items-center justify-center px-6"
-          >
-            {/* Viewfinder */}
-            <div className="relative w-72 h-72 mb-8">
-              {/* Corner brackets */}
-              <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-brand-500 rounded-tl-2xl" />
-              <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-brand-500 rounded-tr-2xl" />
-              <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-brand-500 rounded-bl-2xl" />
-              <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-brand-500 rounded-br-2xl" />
-
-              {/* Scan line */}
-              <div className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-brand-500 to-transparent animate-scan-line" />
-
-              {/* Center icon */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <span className="text-6xl block mb-3">🌿</span>
-                  <p className="text-white/60 text-sm font-medium">Point camera at<br />affected crop</p>
+      <main className="flex-1 flex flex-col px-4 pb-40 pt-4 md:pb-16 max-w-lg mx-auto w-full">
+        <AnimatePresence mode="wait">
+          {phase === 'idle' && (
+            <motion.div
+              key="idle"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center"
+            >
+              <div className="w-full rounded-3xl border border-brand-200 bg-white p-6 shadow-sm text-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-100 text-brand-700 mb-4">
+                  <Leaf size={28} />
                 </div>
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex gap-4 w-full max-w-xs">
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                className="flex-1 flex flex-col items-center gap-2 bg-brand-600 text-white rounded-2xl py-5 shadow-fab active:scale-95 transition-transform"
-              >
-                <Camera size={28} />
-                <span className="text-sm font-semibold">Take Photo</span>
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1 flex flex-col items-center gap-2 bg-white/10 text-white rounded-2xl py-5 border border-white/20 active:scale-95 transition-transform"
-              >
-                <Upload size={28} />
-                <span className="text-sm font-semibold">Upload</span>
-              </button>
-            </div>
-
-            <p className="text-white/40 text-xs text-center mt-6 max-w-xs leading-relaxed">
-              Powered by Gemini AI · Expert agricultural pathology analysis with treatment recommendations
-            </p>
-          </motion.div>
-        )}
-
-        {/* ── Preview State — Image + crop type ───────────────── */}
-        {scanState === 'preview' && imageData && (
-          <motion.div
-            key="preview"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="flex-1 flex flex-col overflow-y-auto no-scrollbar"
-          >
-            {/* Image preview */}
-            <div className="relative mx-4 rounded-2xl overflow-hidden shadow-scanner">
-              <img src={imageData} alt="Crop" className="w-full h-56 object-cover" />
-              <button
-                onClick={handleReset}
-                className="absolute top-3 right-3 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center min-h-fit"
-              >
-                <X size={16} className="text-white" />
-              </button>
-            </div>
-
-            {/* Optional fields */}
-            <div className="px-4 py-4 space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-white/70 mb-1 block">Crop Type (optional)</label>
-                <input
-                  type="text"
-                  value={cropType}
-                  onChange={e => setCropType(e.target.value)}
-                  placeholder="e.g. Wheat, Cotton, Tomato"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/30 text-sm outline-none focus:border-brand-500"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-white/70 mb-1 block">Additional Notes (optional)</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Describe what you see — yellowing, spots, insects..."
-                  rows={2}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/30 text-sm outline-none focus:border-brand-500 resize-none min-h-fit"
-                />
-              </div>
-
-              {error && (
-                <div className="bg-danger-500/20 border border-danger-500/30 rounded-xl px-4 py-3">
-                  <p className="text-sm text-danger-300">{error}</p>
+                <h2 className="text-lg font-bold text-neutral-900 mb-1" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                  Scan a leaf
+                </h2>
+                <p className="text-sm text-neutral-600 mb-6 leading-relaxed">
+                  Upload a clear photo of a single leaf. We validate it on-device, identify the plant, then analyze
+                  disease risk with AI.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex-1 flex flex-col items-center gap-2 rounded-2xl bg-brand-600 text-white py-4 shadow-md hover:bg-brand-500 active:scale-[0.98] transition-all"
+                  >
+                    <Camera size={24} />
+                    <span className="text-sm font-semibold">Camera</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 flex flex-col items-center gap-2 rounded-2xl bg-white border border-brand-200 text-brand-800 py-4 hover:bg-brand-50 active:scale-[0.98] transition-all"
+                  >
+                    <Upload size={24} />
+                    <span className="text-sm font-semibold">Upload</span>
+                  </button>
                 </div>
-              )}
-            </div>
+                {!apiAvailability.hasPlantnetKey && (
+                  <p className="mt-4 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                    Add <code className="font-mono text-[11px]">VITE_PLANTNET_API_KEY</code> in{' '}
+                    <code className="font-mono text-[11px]">.env</code> for plant identification.
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
 
-            {/* Analyze button */}
-            <div className="px-4 pb-8 mt-auto">
-              <button
-                onClick={handleAnalyze}
-                className="btn-brand flex items-center justify-center gap-2"
+          {(phase === 'preview' ||
+            phase === 'preflight' ||
+            phase === 'scanning' ||
+            phase === 'ai' ||
+            phase === 'result') &&
+            dataUrl && (
+              <motion.div
+                key="workspace"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-4"
               >
-                <span className="text-lg">🔬</span> Analyze with AI
-              </button>
-            </div>
-          </motion.div>
-        )}
+                <div className="relative mx-auto w-full max-w-sm aspect-[4/5] rounded-3xl border border-brand-200 bg-white shadow-sm overflow-hidden">
+                  <img src={dataUrl} alt="Leaf preview" className="absolute inset-0 w-full h-full object-contain bg-neutral-50" />
 
-        {/* ── Analyzing State ─────────────────────────────────── */}
-        {scanState === 'analyzing' && (
-          <motion.div
-            key="analyzing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col items-center justify-center px-6"
-          >
-            <div className="relative mb-6">
-              <div className="w-24 h-24 rounded-full bg-brand-600/20 flex items-center justify-center">
-                <Loader2 size={40} className="text-brand-500 animate-spin" />
-              </div>
-              <div className="absolute inset-0 rounded-full bg-brand-500/10 animate-pulse" />
-            </div>
-            <p className="text-white font-bold text-lg mb-2" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-              Analyzing Crop...
-            </p>
-            <p className="text-white/50 text-sm text-center max-w-xs">
-              Dr. AgriScan is examining your crop image for diseases, pests, and nutrient deficiencies
-            </p>
-          </motion.div>
-        )}
+                  {showScanOverlay && (
+                    <>
+                      <div className="absolute inset-0 bg-white/25 backdrop-blur-[1px] pointer-events-none" />
+                      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                        <motion.div
+                          className="absolute left-0 right-0 h-[3px] shadow-[0_0_12px_rgba(249,115,22,0.7)] bg-gradient-to-r from-transparent via-brand-500 to-transparent"
+                          animate={{ top: ['0%', '100%', '0%'] }}
+                          transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                      </div>
+                    </>
+                  )}
 
-        {/* ── Result State — Diagnostic Report ────────────────── */}
-        {scanState === 'result' && (
-          <motion.div
-            key="result"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex-1 flex flex-col overflow-hidden"
-          >
-            {/* Small image preview */}
-            {imageData && (
-              <div className="mx-4 mb-3 h-32 rounded-xl overflow-hidden">
-                <img src={imageData} alt="Crop" className="w-full h-full object-cover" />
-              </div>
+                  {phase === 'preview' && !scanningBusy && (
+                    <button
+                      type="button"
+                      onClick={reset}
+                      className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/95 border border-neutral-200 flex items-center justify-center shadow-sm"
+                      aria-label="Remove image"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {phase === 'preflight' && (
+                  <div className="flex items-center gap-2 justify-center text-sm text-brand-800">
+                    <Loader2 className="animate-spin" size={18} />
+                    <span>{preflightHint}</span>
+                  </div>
+                )}
+
+                {(phase === 'scanning' || phase === 'ai') && (
+                  <div className="text-center min-h-[3rem]">
+                    <AnimatePresence mode="wait">
+                      {phase === 'scanning' && (
+                        <motion.p
+                          key={scanStep}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          className="text-sm font-semibold text-brand-900"
+                        >
+                          {SCAN_STEP_LABELS[scanStep]?.emoji} {SCAN_STEP_LABELS[scanStep]?.text}
+                        </motion.p>
+                      )}
+                      {phase === 'ai' && (
+                        <motion.p
+                          key="ai"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="text-sm font-semibold text-brand-900 flex items-center justify-center gap-2"
+                        >
+                          <Loader2 className="animate-spin" size={16} />
+                          Final analysis with Gemini...
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+                {plantMatch && (phase === 'scanning' || phase === 'ai' || phase === 'result') && (
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-sm">
+                    <p className="font-semibold text-emerald-900">Plant identified</p>
+                    <p className="text-emerald-800">
+                      {plantMatch.commonName}{' '}
+                      <span className="text-emerald-600 text-xs">({(plantMatch.score * 100).toFixed(1)}% match)</span>
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-700">
+                      Confidence: {getPlantNetConfidenceLabel(plantMatch.score)}
+                    </p>
+                    {plantMatch.score < 0.25 && (
+                      <p className="mt-1 text-xs text-amber-800">
+                        This is a weak species match. Use it as a hint and retake a clearer single-leaf photo if needed.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {error && (
+                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+                )}
+
+                {phase === 'preview' && !scanningBusy && (
+                  <button
+                    type="button"
+                    onClick={() => void runPipeline()}
+                    disabled={!apiAvailability.hasPlantnetKey}
+                    className="w-full rounded-2xl bg-brand-600 text-white font-semibold py-3.5 shadow-md hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] transition-all"
+                  >
+                    Start scan
+                  </button>
+                )}
+
+                {phase === 'result' && analysis && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4"
+                  >
+                    <div className="rounded-3xl border border-brand-100 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-bold text-neutral-900 mb-3" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                        Diagnosis
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <p>
+                          <span className="text-neutral-500">Crop</span>{' '}
+                          <span className="font-semibold text-neutral-900">{analysis.cropName}</span>
+                        </p>
+                        <p>
+                          <span className="text-neutral-500">Condition</span>{' '}
+                          <span className="font-semibold text-neutral-900">{analysis.diseaseName}</span>
+                        </p>
+                        <p>
+                          <span className="text-neutral-500">Severity</span>{' '}
+                          <span
+                            className={`font-semibold ${
+                              analysis.severity === 'High'
+                                ? 'text-red-700'
+                                : analysis.severity === 'Medium'
+                                  ? 'text-amber-700'
+                                  : 'text-emerald-700'
+                            }`}
+                          >
+                            {analysis.severity}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-bold text-neutral-700 mb-2 px-1">Recommended treatments</h4>
+                      <div className="space-y-3">
+                        {analysis.treatments.map((treatment, index) => (
+                          <div
+                            key={`${treatment.name}-${index}`}
+                            className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <p className="font-semibold text-neutral-900 text-sm">{treatment.name}</p>
+                              <span
+                                className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                  treatment.type === 'Organic'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : treatment.type === 'Chemical'
+                                      ? 'bg-sky-100 text-sky-800'
+                                      : 'bg-neutral-100 text-neutral-700'
+                                }`}
+                              >
+                                {treatment.type}
+                              </span>
+                            </div>
+                            <p className="text-xs text-neutral-600 leading-relaxed mb-2">{treatment.usage}</p>
+                            <p className="text-xs font-semibold text-brand-700">Est. cost: INR {treatment.averageCostInr}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="sticky bottom-3 z-10 -mx-1 mt-2 rounded-[28px] border border-brand-100 bg-white/92 p-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={handleDownloadPdf}
+                          className="w-full flex items-center justify-center gap-2 rounded-2xl border border-brand-200 bg-white text-brand-800 font-semibold py-3 hover:bg-brand-50 transition-colors"
+                        >
+                          <Download size={18} />
+                          Download report
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={reset}
+                          className="w-full rounded-2xl bg-brand-600 text-white font-semibold py-3.5 hover:bg-brand-500 transition-colors"
+                        >
+                          Scan another leaf
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
             )}
-
-            {/* Report card */}
-            <div className="flex-1 bg-white rounded-t-3xl overflow-y-auto no-scrollbar">
-              <div className="px-5 py-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <FileText size={18} className="text-brand-600" />
-                  <h2 className="text-lg font-bold text-neutral-900" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
-                    Diagnostic Report
-                  </h2>
-                </div>
-
-                {/* Report content */}
-                <div className="prose prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap text-sm text-neutral-800 leading-relaxed font-body bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-                    {report}
-                  </pre>
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-3 mt-5">
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-100 text-neutral-700 text-sm font-semibold hover:bg-neutral-200 transition-colors">
-                    <Share2 size={15} /> Share
-                  </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-100 text-neutral-700 text-sm font-semibold hover:bg-neutral-200 transition-colors">
-                    <Download size={15} /> Save
-                  </button>
-                </div>
-
-                {/* Scan again */}
-                <button
-                  onClick={handleReset}
-                  className="btn-brand mt-4 flex items-center justify-center gap-2"
-                >
-                  <Camera size={18} /> Scan Another Crop
-                </button>
-
-                <div className="h-8" />
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-      </AnimatePresence>
+        </AnimatePresence>
+      </main>
     </div>
   )
 }

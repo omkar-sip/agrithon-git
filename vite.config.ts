@@ -3,6 +3,22 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/plantnet-api': {
+        target: 'https://my-api.plantnet.org',
+        changeOrigin: true,
+        secure: true,
+        rewrite: path => path.replace(/^\/plantnet-api/, ''),
+        configure: proxy => {
+          proxy.on('proxyReq', proxyReq => {
+            proxyReq.removeHeader('origin')
+            proxyReq.removeHeader('referer')
+          })
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

@@ -2,7 +2,7 @@
 
 This file is a lightweight path index to quickly locate code and reduce repeated repository scans.
 
-- Generated: 2026-04-09 02.12.05 +05:30
+- Generated: 2026-04-09 10.27.55 +05:30
 - Root: C:\Users\prati\AGRITHON\agrithon-git
 - Excluded directories: .git, .tmp, node_modules
 - Regenerate: powershell -ExecutionPolicy Bypass -File scripts/generate-codebase-tree.ps1
@@ -106,6 +106,7 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |-- useFarmRental.ts
 |   |   |-- useGemini.ts
 |   |   |-- useGeolocation.ts
+|   |   |-- useHomeInsights.ts
 |   |   |-- useOfflineSync.ts
 |   |   |-- useVoiceAgent.ts
 |   |   |-- useVoiceInput.ts
@@ -199,6 +200,9 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |   \-- storageService.ts
 |   |   |-- gemini/
 |   |   |   \-- geminiClient.ts
+|   |   |-- scanner/
+|   |   |   |-- mobilenetLeaf.ts
+|   |   |   \-- plantnetClient.ts
 |   |   |-- ai.ts
 |   |   |-- api.ts
 |   |   |-- mandi.ts
@@ -221,6 +225,7 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |-- crop.ts
 |   |   |-- farmer.ts
 |   |   |-- fishery.ts
+|   |   |-- leafScanner.ts
 |   |   |-- livestock.ts
 |   |   |-- poultry.ts
 |   |   \-- speech-recognition.d.ts
@@ -228,6 +233,7 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |-- colorSystem.ts
 |   |   |-- cropCalendar.ts
 |   |   |-- dateHelper.ts
+|   |   |-- leafScannerPdf.ts
 |   |   |-- offline.ts
 |   |   \-- unitConverter.ts
 |   |-- App.css

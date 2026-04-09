@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
+  Camera,
   ChevronRight,
   Calculator,
   CloudRain,
@@ -13,6 +14,7 @@ import {
   TrendingUp,
   Bug,
   Leaf,
+  MessageSquareText,
   Mic,
   type LucideIcon,
 } from 'lucide-react'
@@ -21,7 +23,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../store/useAuthStore'
 import type { WeatherData } from '../../store/useWeatherStore'
 import { useWeather } from '../../hooks/useWeather'
-import { useHomeInsights, type AiTask } from '../../hooks/useHomeInsights'
+import { useHomeInsights } from '../../hooks/useHomeInsights'
 import WeatherWidget from '../../components/shared/WeatherWidget'
 import BannerCarousel from '../../components/shared/BannerCarousel'
 import type { BannerSlide } from '../../components/shared/BannerCarousel'
@@ -224,14 +226,6 @@ const generateInsights = (
   return insights
 }
 
-const AI_TASK_ICONS: Record<string, LucideIcon> = {
-  '🌾': Sprout,
-  '💧': Droplets,
-  '🌡️': ThermometerSun,
-  '📊': TrendingUp,
-  '🐛': Bug,
-  '🌿': Leaf,
-}
 
 const stagger = {
   container: { animate: { transition: { staggerChildren: 0.08 } } },
@@ -308,6 +302,14 @@ export default function Home() {
   )
   const toolShortcuts: ToolShortcut[] = [
     {
+      id: 'crop-advisory',
+      title: 'Fasal Salah',
+      subtitle: 'Get crop recommendations and treatment guidance',
+      route: '/crop-advisory',
+      icon: Leaf,
+      tint: 'bg-brand-50 text-brand-700 border-brand-100',
+    },
+    {
       id: 'mandi',
       title: 'Mandi Saathi',
       subtitle: 'Check rates and list crop',
@@ -346,6 +348,14 @@ export default function Home() {
       route: '/sarkari-yojana',
       icon: Landmark,
       tint: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    },
+    {
+      id: 'kisan-kaksha',
+      title: 'Kisan Kaksha',
+      subtitle: 'Farmer community and learning space',
+      route: '/kisan-kaksha',
+      icon: MessageSquareText,
+      tint: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     },
     {
       id: 'salah',
@@ -394,6 +404,34 @@ export default function Home() {
       </motion.div>
 
       <WeatherWidget />
+
+      <section>
+        <button
+          type="button"
+          onClick={() => navigate('/scanner')}
+          className="w-full overflow-hidden rounded-[28px] border border-brand-200 bg-gradient-to-r from-brand-600 via-brand-500 to-emerald-500 px-5 py-5 text-left text-white shadow-card hover:shadow-card-md active:scale-[0.99] transition-all"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="max-w-xl">
+              <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/90">
+                Disease Detection
+              </span>
+              <h2 className="mt-3 text-xl font-bold" style={{ fontFamily: 'Baloo 2, sans-serif' }}>
+                Scan a leaf from home
+              </h2>
+              <p className="mt-2 text-sm text-white/90 leading-relaxed">
+                Upload one clear leaf photo to identify the plant, detect disease risk, and download a treatment report.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-white">
+                Open Leaf Scanner <ChevronRight size={16} />
+              </span>
+            </div>
+            <div className="shrink-0 rounded-[24px] bg-white/15 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+              <Camera size={30} />
+            </div>
+          </div>
+        </button>
+      </section>
 
       <section>
         <div className="flex items-center justify-between mb-3">
@@ -532,7 +570,6 @@ export default function Home() {
           ) : aiTasks.length > 0 ? (
             aiTasks.map((task, index) => {
               const taskColors = AI_TASK_COLOR_MAP[task.color] || AI_TASK_COLOR_MAP.green
-              const TaskIcon = AI_TASK_ICONS[task.icon] || Sprout
 
               return (
                 <div

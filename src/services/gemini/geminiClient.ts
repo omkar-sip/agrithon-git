@@ -2,6 +2,7 @@
 // Gemini API client with feature-specific system prompts
 import { GoogleGenerativeAI, type GenerateContentResult, type Part } from '@google/generative-ai'
 import { apiAvailability, env, runtimeSecurity } from '../../config/env'
+import type { LeafDiseaseAnalysis, LeafTreatment } from '../../types/leafScanner'
 
 let genAI: GoogleGenerativeAI | null = null
 let hasWarnedAboutBrowserGemini = false
@@ -830,5 +831,306 @@ The leaves show characteristic brown spots with yellow halos, indicating early-s
 
   const result = await model.generateContent(parts)
   return result.response.text()
+}
+
+const extractJsonCandidate = (raw: string): string => {
+  const trimmed = raw.trim()
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const unfenced = fence ? fence[1].trim() : trimmed
+
+  const objectStart = unfenced.indexOf('{')
+  const objectEnd = unfenced.lastIndexOf('}')
+  if (objectStart >= 0 && objectEnd > objectStart) {
+    return unfenced.slice(objectStart, objectEnd + 1)
+  }
+
+  const arrayStart = unfenced.indexOf('[')
+  const arrayEnd = unfenced.lastIndexOf(']')
+  if (arrayStart >= 0 && arrayEnd > arrayStart) {
+    return unfenced.slice(arrayStart, arrayEnd + 1)
+  }
+
+  return unfenced
+}
+
+const escapeNewlinesInsideStrings = (input: string): string => {
+  let result = ''
+  let inString = false
+  let escapeNext = false
+
+  for (const char of input) {
+    if (escapeNext) {
+      result += char
+      escapeNext = false
+      continue
+    }
+
+    if (char === '\\') {
+      result += char
+      escapeNext = true
+      continue
+    }
+
+    if (char === '"') {
+      inString = !inString
+      result += char
+      continue
+    }
+
+    if (inString && (char === '\n' || char === '\r')) {
+      result += '\\n'
+      continue
+    }
+
+    result += char
+  }
+
+  return result
+}
+
+const repairCommonJsonIssues = (input: string): string =>
+  escapeNewlinesInsideStrings(
+    input
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/\u00A0/g, ' ')
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/([}\]"0-9eEfalr-u])(\s*)(?="[^"]+"\s*:)/g, '$1,$2')
+      .replace(/([}\]"0-9eEfalr-u])(\s*)(?=[[{])/g, '$1,$2'),
+  )
+
+const parseModelJsonObject = (raw: string): unknown => {
+  const candidate = extractJsonCandidate(raw)
+  const attempts = [candidate, repairCommonJsonIssues(candidate)]
+
+  let lastError: unknown = null
+  for (const attempt of attempts) {
+    try {
+      return JSON.parse(attempt)
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  const message =
+    lastError instanceof Error
+      ? lastError.message
+      : 'Unknown JSON parsing error'
+  throw new Error(`Invalid disease analysis JSON. ${message}`)
+}
+
+const repairStructuredJsonWithGemini = async (
+  client: GoogleGenerativeAI,
+  raw: string,
+  schemaDescription: string,
+): Promise<string> => {
+  const repairModel = client.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction: `You repair malformed JSON from a previous model step.
+Return ONLY valid JSON.
+Do not add commentary.
+Preserve the original meaning while fitting this schema:
+${schemaDescription}`,
+    generationConfig: {
+      maxOutputTokens: 1200,
+      temperature: 0.1,
+      topP: 0.8,
+      responseMimeType: 'application/json',
+    },
+  })
+
+  const repairPrompt = `Convert this malformed JSON-like response into valid JSON only.
+
+Malformed response:
+${raw}`
+
+  const repairResult = await withTimeout(
+    repairModel.generateContent(repairPrompt),
+    15_000,
+    'structured-json-repair',
+  )
+
+  return extractResponseText(repairResult)
+}
+
+const asTreatmentType = (value: unknown): LeafTreatment['type'] => {
+  const normalized = String(value || '').toLowerCase()
+  if (normalized.includes('organic')) return 'Organic'
+  if (normalized.includes('chemical')) return 'Chemical'
+  return 'Manual'
+}
+
+const normalizeLeafDiseaseAnalysis = (data: unknown, fallbackCrop: string): LeafDiseaseAnalysis => {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid analysis payload')
+  }
+
+  const record = data as Record<string, unknown>
+  const cropName = String(record.cropName || record.crop || fallbackCrop || 'Unknown crop').trim()
+  const diseaseName = String(record.diseaseName || record.disease || 'Healthy').trim()
+  const severityValue = String(record.severity || 'Low').trim()
+  const severity =
+    severityValue === 'High' || severityValue === 'Medium' || severityValue === 'Low'
+      ? severityValue
+      : 'Low'
+
+  const rawTreatments = Array.isArray(record.treatments) ? record.treatments : []
+  const treatments: LeafTreatment[] = rawTreatments.slice(0, 8).map((item, index) => {
+    const treatment = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>
+    const cost = Number(treatment.averageCostInr ?? treatment.cost ?? treatment.averageCost ?? 0)
+    return {
+      name: String(treatment.name || `Treatment ${index + 1}`).trim(),
+      usage: String(
+        treatment.usage || treatment.instructions || 'Follow label and local agronomist advice.',
+      ).trim(),
+      type: asTreatmentType(treatment.type),
+      averageCostInr: Number.isFinite(cost) && cost >= 0 ? Math.round(cost) : 0,
+    }
+  })
+
+  const padded = [...treatments]
+  while (padded.length < 3) {
+    padded.push({
+      name: 'Field observation',
+      usage: 'Monitor the crop for 48 hours and capture clearer photos if symptoms spread.',
+      type: 'Manual',
+      averageCostInr: 0,
+    })
+  }
+
+  return {
+    cropName,
+    diseaseName,
+    severity,
+    treatments: padded.slice(0, 5),
+  }
+}
+
+export async function analyzeLeafDiseaseStructured(params: {
+  base64Image: string
+  plantScientificName: string
+  plantCommonName: string
+  plantNetScore: number
+  language: string
+}): Promise<LeafDiseaseAnalysis> {
+  const lang = LANG_NAMES[params.language] || 'English'
+
+  if (runtimeSecurity.geminiBlockedInBrowser) {
+    throw new Error(
+      'Secure mode is active. Add a backend for Gemini or set VITE_ALLOW_BROWSER_GEMINI=true for demos.',
+    )
+  }
+
+  const client = getClient()
+  if (!client) {
+    return normalizeLeafDiseaseAnalysis(
+      {
+        cropName: params.plantCommonName,
+        diseaseName: 'Leaf spot (demo)',
+        severity: 'Medium',
+        treatments: [
+          {
+            name: 'Mancozeb 75% WP',
+            usage: 'Spray 2 g per litre of water; cover both leaf surfaces once.',
+            type: 'Chemical',
+            averageCostInr: 180,
+          },
+          {
+            name: 'Neem oil 1500 ppm',
+            usage: '5 ml per litre as organic follow-up after 3 days.',
+            type: 'Organic',
+            averageCostInr: 220,
+          },
+          {
+            name: 'Improve drainage',
+            usage: 'Avoid waterlogging; aerate soil near the base.',
+            type: 'Manual',
+            averageCostInr: 0,
+          },
+        ],
+      },
+      params.plantCommonName,
+    )
+  }
+
+  const systemInstruction = `You are an agricultural plant pathologist helping Indian smallholder farmers.
+Analyze the provided leaf or plant image together with the PlantNet identification.
+Respond in ${lang} for text fields inside JSON (name, usage strings).
+
+You MUST output ONLY valid JSON (no markdown) with this exact shape:
+{
+  "cropName": string,
+  "diseaseName": string,
+  "severity": "Low" | "Medium" | "High",
+  "treatments": [
+    {
+      "name": string,
+      "usage": string,
+      "type": "Organic" | "Chemical" | "Manual",
+      "averageCostInr": number
+    }
+  ]
+}
+
+Rules:
+- cropName should match the crop implied by the image and PlantNet result.
+- diseaseName: specific disease or "Healthy" if no clear disease.
+- Provide 3 to 5 treatments available in typical Indian agri retail.
+- averageCostInr: realistic rounded INR estimate per treatment package or application.
+- Keep usage short and practical.`
+
+  const jsonSchemaDescription = `{
+  "cropName": string,
+  "diseaseName": string,
+  "severity": "Low" | "Medium" | "High",
+  "treatments": [
+    {
+      "name": string,
+      "usage": string,
+      "type": "Organic" | "Chemical" | "Manual",
+      "averageCostInr": number
+    }
+  ]
+}`
+
+  const userMsg = `PlantNet identification:
+- Common name: ${params.plantCommonName}
+- Scientific name: ${params.plantScientificName}
+- Confidence score: ${params.plantNetScore.toFixed(4)}
+
+Analyze the image for disease or deficiency and fill the JSON.`
+
+  const base64Data = params.base64Image.split(',')[1] || params.base64Image
+  const mimeType = params.base64Image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg'
+
+  const model = client.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction,
+    generationConfig: {
+      maxOutputTokens: 1200,
+      temperature: 0.35,
+      topP: 0.9,
+      responseMimeType: 'application/json',
+    },
+  })
+
+  const parts: Part[] = [
+    { text: userMsg },
+    { inlineData: { data: base64Data, mimeType } },
+  ]
+
+  const result = await withTimeout(model.generateContent(parts), 25_000, 'leaf-disease-json')
+  const rawText = extractResponseText(result)
+  let parsed: unknown
+
+  try {
+    parsed = parseModelJsonObject(rawText)
+  } catch (error) {
+    console.warn('[Leaf Scanner] Invalid JSON from Gemini, attempting repair', error)
+    const repairedText = await repairStructuredJsonWithGemini(client, rawText, jsonSchemaDescription)
+    parsed = parseModelJsonObject(repairedText)
+  }
+
+  return normalizeLeafDiseaseAnalysis(parsed, params.plantCommonName)
 }
 

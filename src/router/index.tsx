@@ -109,6 +109,7 @@ const router = createBrowserRouter([
 
       // Marketplace
       { path: 'marketplace',     element: <S><Marketplace /></S> },
+      { path: 'crop-advisory',   element: <S><CropAdvisory /></S> },
       { path: 'mitti-sehat',     element: <S><SoilHealth /></S> },
       { path: 'kheti-kharcha',   element: <S><KhetiKharcha /></S> },
       { path: 'sauda-suraksha',  element: <S><SaudaSuraksha /></S> },
@@ -154,6 +155,7 @@ const router = createBrowserRouter([
 
       // Community
       { path: 'forum', element: <S><Forum /></S> },
+      { path: 'kisan-kaksha', element: <S><Forum /></S> },
     ],
   },
 

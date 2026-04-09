@@ -14,6 +14,7 @@ const NO_FAB_PATHS = [
   '/category',
   '/profile',
   '/scanner',
+  '/crop-advisory',
   '/farm-rental',
   '/farm-rental/service/',
 ]
@@ -35,7 +36,7 @@ export default function AppShell() {
 
       {showHeader && <GlobalHeader />}
 
-      <main className="relative flex-1 overflow-y-auto no-scrollbar">
+      <main className="relative flex-1 min-h-0 overflow-y-auto no-scrollbar">
         <Outlet />
         {showBottomNav && <div className="h-8 shrink-0" aria-hidden />}
       </main>

@@ -2,6 +2,8 @@
 // Gemini API client with feature-specific system prompts
 import { GoogleGenerativeAI, type GenerateContentResult, type Part } from '@google/generative-ai'
 import { apiAvailability, env, runtimeSecurity } from '../../config/env'
+import type { LeafDiseaseAnalysis, LeafTreatment } from '../../types/leafScanner'
+import type { CropAdvisoryResult, CropAdvisoryCrop, AdvisoryDifficulty, AdvisoryProfitLevel, AdvisoryRiskLevel, AdvisoryWaterRequirement, BudgetCompatibility } from '../../types/cropAdvisory'
 
 let genAI: GoogleGenerativeAI | null = null
 let hasWarnedAboutBrowserGemini = false
@@ -55,7 +57,7 @@ const TTS_MODEL_TIMEOUT_MS: Record<string, number> = {
 }
 
 const FAST_GENERATION_CONFIG = {
-  maxOutputTokens: 420,
+  maxOutputTokens: 900,
   temperature: 0.45,
   topP: 0.9,
 }
@@ -166,6 +168,18 @@ const getFinishReason = (result: GenerateContentResult): string => {
 
 const isLikelyTruncated = (finishReason: string): boolean => finishReason.toUpperCase() === 'MAX_TOKENS'
 
+const looksIncompleteText = (text: string): boolean => {
+  const compact = text.replace(/\s+/g, ' ').trim()
+  if (!compact) return false
+  if (compact.length < 40) return false
+  const lastChar = compact.slice(-1)
+  // If answer does not end cleanly, request continuation.
+  if (!/[.!?।]/.test(lastChar)) return true
+  // Common abrupt endings from cut generations.
+  if (/(and|or|because|so|but|then|for example|e\.g)\s*[.:;,-]?$/i.test(compact)) return true
+  return false
+}
+
 const mergeContinuation = (baseText: string, continuationText: string): string => {
   const base = baseText.trim()
   const continuation = continuationText.trim()
@@ -252,7 +266,7 @@ async function generate(
           finishReason = getFinishReason(result)
         }
 
-        if (text && isLikelyTruncated(finishReason)) {
+        if (text && (isLikelyTruncated(finishReason) || looksIncompleteText(text))) {
           const continuationResult = await withTimeout(
             chat.sendMessage(CONTINUE_PROMPT),
             timeoutMs + CONTINUATION_TIMEOUT_EXTRA_MS,
@@ -289,7 +303,7 @@ async function generate(
         finishReason = getFinishReason(result)
       }
 
-      if (text && isLikelyTruncated(finishReason)) {
+      if (text && (isLikelyTruncated(finishReason) || looksIncompleteText(text))) {
         const continuationResult = await withTimeout(
           model.generateContent(
             `Continue this answer from where it stopped. Do not repeat previous content.
@@ -335,6 +349,189 @@ export async function generateAiText(params: {
     history: params.history,
     model: params.model,
   })
+}
+
+const toAdvisoryWaterRequirement = (value: unknown): AdvisoryWaterRequirement => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'low') return 'Low'
+  if (normalized === 'high') return 'High'
+  return 'Medium'
+}
+
+const toAdvisoryProfitLevel = (value: unknown): AdvisoryProfitLevel => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'low') return 'Low'
+  if (normalized === 'high') return 'High'
+  return 'Medium'
+}
+
+const toAdvisoryDifficulty = (value: unknown): AdvisoryDifficulty => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'easy') return 'Easy'
+  if (normalized === 'hard') return 'Hard'
+  return 'Moderate'
+}
+
+const toAdvisoryRiskLevel = (value: unknown): AdvisoryRiskLevel => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'low') return 'Low'
+  if (normalized === 'high') return 'High'
+  return 'Medium'
+}
+
+const toBudgetCompatibility = (value: unknown, budgetProvided: boolean): BudgetCompatibility => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!budgetProvided) return 'Not provided'
+  if (normalized.includes('fits')) return 'Fits Well'
+  if (normalized.includes('manageable')) return 'Manageable'
+  if (normalized.includes('stretch')) return 'Stretch'
+  if (normalized.includes('over')) return 'Over Budget'
+  return 'Manageable'
+}
+
+const normalizeCropAdvisoryResult = (
+  data: unknown,
+  budgetProvided: boolean,
+  fallbackLocation: string,
+): CropAdvisoryResult => {
+  if (!data || typeof data !== 'object') {
+    const baseSuggestion = budgetProvided
+      ? 'Choose crops with staggered spending and start input procurement in phases.'
+      : 'Compare seed, irrigation, and labour needs before final crop selection.'
+    const fallbackCrops: CropAdvisoryCrop[] = [
+      {
+        cropName: 'Maize',
+        reason: `Weather and field conditions around ${fallbackLocation || 'your area'} support a balanced risk profile.`,
+        waterRequirement: 'Medium',
+        profitLevel: 'Medium',
+        difficulty: 'Moderate',
+        riskLevel: 'Medium',
+        riskExplanation: 'Returns depend on timely irrigation and pest scouting during key growth stages.',
+        suggestion: baseSuggestion,
+        budgetCompatibility: budgetProvided ? 'Manageable' : 'Not provided',
+        estimatedCostInr: budgetProvided ? 18000 : undefined,
+      },
+      {
+        cropName: 'Green gram',
+        reason: 'Fits short-season planning and handles moderate input pressure well.',
+        waterRequirement: 'Low',
+        profitLevel: 'Medium',
+        difficulty: 'Easy',
+        riskLevel: 'Low',
+        riskExplanation: 'Lower water demand reduces pressure when rainfall becomes uneven.',
+        suggestion: 'Keep seed treatment and weed control ready before sowing.',
+        budgetCompatibility: budgetProvided ? 'Fits Well' : 'Not provided',
+        estimatedCostInr: budgetProvided ? 12000 : undefined,
+      },
+      {
+        cropName: 'Groundnut',
+        reason: 'Offers market potential where drainage and sunshine stay favorable.',
+        waterRequirement: 'Medium',
+        profitLevel: 'High',
+        difficulty: 'Moderate',
+        riskLevel: 'Medium',
+        riskExplanation: 'Disease and moisture swings can reduce yield without timely scouting.',
+        suggestion: 'Plan fungicide and gypsum inputs ahead of flowering.',
+        budgetCompatibility: budgetProvided ? 'Stretch' : 'Not provided',
+        estimatedCostInr: budgetProvided ? 22000 : undefined,
+      },
+      {
+        cropName: 'Pearl millet',
+        reason: 'Works well as a resilient option when water security is limited.',
+        waterRequirement: 'Low',
+        profitLevel: 'Low',
+        difficulty: 'Easy',
+        riskLevel: 'Low',
+        riskExplanation: 'Lower sensitivity to moisture stress keeps production steadier.',
+        suggestion: 'Use as a safer backup crop if rainfall stays uncertain.',
+        budgetCompatibility: budgetProvided ? 'Fits Well' : 'Not provided',
+        estimatedCostInr: budgetProvided ? 9000 : undefined,
+      },
+      {
+        cropName: 'Sesame',
+        reason: 'Useful for lighter soils and lower irrigation dependency.',
+        waterRequirement: 'Low',
+        profitLevel: 'Medium',
+        difficulty: 'Moderate',
+        riskLevel: 'Medium',
+        riskExplanation: 'Poor drainage and late rains can still affect establishment.',
+        suggestion: 'Sow only after field drainage and seedbed quality are confirmed.',
+        budgetCompatibility: budgetProvided ? 'Manageable' : 'Not provided',
+        estimatedCostInr: budgetProvided ? 10000 : undefined,
+      },
+    ]
+
+    return {
+      crops: fallbackCrops,
+      overallRiskLevel: 'Medium',
+      overallRiskExplanation: 'Conditions are workable, but final crop choice should still match rainfall and water access.',
+      overallSuggestion: baseSuggestion,
+      budgetSummary: budgetProvided
+        ? {
+            estimatedCostInr: 18000,
+            budgetFit: 'Manageable for phased spending',
+          }
+        : undefined,
+    }
+  }
+
+  const record = data as Record<string, unknown>
+  const rawCrops = Array.isArray(record.crops) ? record.crops : []
+  const crops: CropAdvisoryCrop[] = rawCrops.slice(0, 5).map((item, index) => {
+    const crop = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>
+    const estimatedCostInr = Number(crop.estimatedCostInr ?? crop.estimatedCost ?? 0)
+
+    return {
+      cropName: String(crop.cropName || crop.name || `Crop ${index + 1}`).trim(),
+      reason: String(crop.reason || 'Suitable for current farm conditions.').trim(),
+      waterRequirement: toAdvisoryWaterRequirement(crop.waterRequirement),
+      profitLevel: toAdvisoryProfitLevel(crop.profitLevel),
+      difficulty: toAdvisoryDifficulty(crop.difficulty),
+      riskLevel: toAdvisoryRiskLevel(crop.riskLevel),
+      riskExplanation: String(crop.riskExplanation || 'Weather and input volatility remain manageable with regular monitoring.').trim(),
+      suggestion: String(crop.suggestion || 'Prepare seed and input plans before sowing.').trim(),
+      budgetCompatibility: toBudgetCompatibility(crop.budgetCompatibility, budgetProvided),
+      estimatedCostInr: Number.isFinite(estimatedCostInr) && estimatedCostInr > 0 ? Math.round(estimatedCostInr) : undefined,
+    }
+  })
+
+  if (!crops.length) {
+    return normalizeCropAdvisoryResult(null, budgetProvided, fallbackLocation)
+  }
+
+  while (crops.length < 5) {
+    crops.push({
+      ...crops[crops.length - 1],
+      cropName: `${crops[crops.length - 1].cropName} Option ${crops.length + 1}`,
+    })
+  }
+
+  const budgetEstimatedCost = Number(record.budgetEstimatedCostInr ?? record.estimatedCostInr ?? 0)
+  const budgetFit = String(record.budgetFit || record.budgetCompatibility || '').trim()
+
+  return {
+    crops,
+    overallRiskLevel: toAdvisoryRiskLevel(record.overallRiskLevel || crops[0]?.riskLevel),
+    overallRiskExplanation: String(
+      record.overallRiskExplanation ||
+        record.riskExplanation ||
+        crops[0]?.riskExplanation ||
+        'Monitor rainfall and input costs before finalizing the crop mix.',
+    ).trim(),
+    overallSuggestion: String(
+      record.overallSuggestion ||
+        record.suggestion ||
+        crops[0]?.suggestion ||
+        'Choose one primary crop and one lower-risk backup option.',
+    ).trim(),
+    budgetSummary:
+      budgetProvided && Number.isFinite(budgetEstimatedCost) && budgetEstimatedCost > 0
+        ? {
+            estimatedCostInr: Math.round(budgetEstimatedCost),
+            budgetFit: budgetFit || 'Budget appears manageable for the recommended crop mix.',
+          }
+        : undefined,
+  }
 }
 
 // ─── Mock fallback (dev without API key) ────────────────────────────────────
@@ -547,6 +744,83 @@ Current Weather: ${params.currentWeather}
 Forecast: ${params.forecast}`
 
   return generate(system, user)
+}
+
+export async function generateCropAdvisory(params: {
+  language: string
+  location: string
+  weather: {
+    temperatureC: number
+    humidity: number
+    rainfallMm: number
+    condition: string
+  }
+  soilType: string
+  waterAvailability: string
+  season: string
+  soilPh?: number | null
+  landSizeAcres?: number | null
+  budgetInr?: number | null
+}): Promise<CropAdvisoryResult> {
+  const lang = LANG_NAMES[params.language] || 'English'
+  const budgetProvided = typeof params.budgetInr === 'number' && Number.isFinite(params.budgetInr)
+
+  const system = `You are a crop planning advisor for Indian farmers.
+Respond in ${lang}.
+Return ONLY valid JSON with this exact shape:
+{
+  "crops": [
+    {
+      "cropName": string,
+      "reason": string,
+      "waterRequirement": "Low" | "Medium" | "High",
+      "profitLevel": "Low" | "Medium" | "High",
+      "difficulty": "Easy" | "Moderate" | "Hard",
+      "riskLevel": "Low" | "Medium" | "High",
+      "riskExplanation": string,
+      "suggestion": string,
+      "budgetCompatibility": "Fits Well" | "Manageable" | "Stretch" | "Over Budget" | "Not provided",
+      "estimatedCostInr": number
+    }
+  ],
+  "overallRiskLevel": "Low" | "Medium" | "High",
+  "overallRiskExplanation": string,
+  "overallSuggestion": string,
+  "budgetEstimatedCostInr": number,
+  "budgetFit": string
+}
+
+Rules:
+- Recommend exactly 5 crops ranked best to worst for the given inputs.
+- Focus on Indian farming conditions and practical crop choices.
+- Reason, riskExplanation, and suggestion must each stay under 24 words.
+- estimatedCostInr should be realistic total establishment cost per acre or near-equivalent guidance.
+- If budget is missing, use "Not provided" and set budgetEstimatedCostInr to 0.
+- Never use markdown.`
+
+  const user = `Location: ${params.location}
+Weather:
+- Temperature: ${params.weather.temperatureC} C
+- Humidity: ${params.weather.humidity}%
+- Rainfall: ${params.weather.rainfallMm} mm
+- Condition: ${params.weather.condition}
+
+Farm inputs:
+- Soil type: ${params.soilType}
+- Water availability: ${params.waterAvailability}
+- Season: ${params.season}
+- Soil pH: ${params.soilPh ?? 'Not provided'}
+- Land size (acres): ${params.landSizeAcres ?? 'Not provided'}
+- Budget (INR): ${budgetProvided ? params.budgetInr : 'Not provided'}`
+
+  try {
+    const raw = await generate(system, user)
+    const parsed = parseModelJsonObject(raw)
+    return normalizeCropAdvisoryResult(parsed, budgetProvided, params.location)
+  } catch (error) {
+    console.warn('[Gemini] Crop advisory fallback', error)
+    return normalizeCropAdvisoryResult(null, budgetProvided, params.location)
+  }
 }
 
 export async function synthesizeHyperlocalAlerts(params: {
@@ -830,5 +1104,169 @@ The leaves show characteristic brown spots with yellow halos, indicating early-s
 
   const result = await model.generateContent(parts)
   return result.response.text()
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Leaf Scanner — structured disease JSON (Gemini Vision)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const parseModelJsonObject = (raw: string): unknown => {
+  const trimmed = raw.trim()
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
+  const jsonStr = fence ? fence[1].trim() : trimmed
+  return JSON.parse(jsonStr)
+}
+
+const asTreatmentType = (value: unknown): LeafTreatment['type'] => {
+  const s = String(value || '').toLowerCase()
+  if (s.includes('organic')) return 'Organic'
+  if (s.includes('chemical')) return 'Chemical'
+  return 'Manual'
+}
+
+const normalizeLeafDiseaseAnalysis = (data: unknown, fallbackCrop: string): LeafDiseaseAnalysis => {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid analysis payload')
+  }
+  const record = data as Record<string, unknown>
+  const cropName = String(record.cropName || record.crop || fallbackCrop || 'Unknown crop').trim()
+  const diseaseName = String(record.diseaseName || record.disease || 'Healthy').trim()
+  const sev = String(record.severity || 'Low').trim()
+  const severity =
+    sev === 'High' || sev === 'Medium' || sev === 'Low' ? sev : 'Low'
+
+  const rawTreatments = Array.isArray(record.treatments) ? record.treatments : []
+  const treatments: LeafTreatment[] = rawTreatments.slice(0, 8).map((item, index) => {
+    const t = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>
+    const cost = Number(t.averageCostInr ?? t.cost ?? t.averageCost ?? 0)
+    return {
+      name: String(t.name || `Treatment ${index + 1}`).trim(),
+      usage: String(t.usage || t.instructions || 'Follow label and local agronomist advice.').trim(),
+      type: asTreatmentType(t.type),
+      averageCostInr: Number.isFinite(cost) && cost >= 0 ? Math.round(cost) : 0,
+    }
+  })
+
+  const padded = [...treatments]
+  while (padded.length < 3) {
+    padded.push({
+      name: 'Field observation',
+      usage: 'Monitor the crop for 48 hours and capture clearer photos if symptoms spread.',
+      type: 'Manual',
+      averageCostInr: 0,
+    })
+  }
+
+  return {
+    cropName,
+    diseaseName,
+    severity: severity as LeafDiseaseAnalysis['severity'],
+    treatments: padded.slice(0, 5),
+  }
+}
+
+export async function analyzeLeafDiseaseStructured(params: {
+  base64Image: string
+  plantScientificName: string
+  plantCommonName: string
+  plantNetScore: number
+  language: string
+}): Promise<LeafDiseaseAnalysis> {
+  const lang = LANG_NAMES[params.language] || 'English'
+
+  if (runtimeSecurity.geminiBlockedInBrowser) {
+    throw new Error(
+      'Secure mode is active. Add a backend for Gemini or set VITE_ALLOW_BROWSER_GEMINI=true for demos.'
+    )
+  }
+
+  const client = getClient()
+  if (!client) {
+    return normalizeLeafDiseaseAnalysis(
+      {
+        cropName: params.plantCommonName,
+        diseaseName: 'Leaf spot (demo)',
+        severity: 'Medium',
+        treatments: [
+          {
+            name: 'Mancozeb 75% WP',
+            usage: 'Spray 2 g per litre of water; cover both leaf surfaces once.',
+            type: 'Chemical',
+            averageCostInr: 180,
+          },
+          {
+            name: 'Neem oil 1500 ppm',
+            usage: '5 ml per litre as organic follow-up after 3 days.',
+            type: 'Organic',
+            averageCostInr: 220,
+          },
+          {
+            name: 'Improve drainage',
+            usage: 'Avoid waterlogging; aerate soil near the base.',
+            type: 'Manual',
+            averageCostInr: 0,
+          },
+        ],
+      },
+      params.plantCommonName
+    )
+  }
+
+  const systemInstruction = `You are an agricultural plant pathologist helping Indian smallholder farmers.
+Analyze the provided leaf/plant image together with the PlantNet identification.
+Respond in ${lang} for text fields inside JSON (name, usage strings).
+
+You MUST output ONLY valid JSON (no markdown) with this exact shape:
+{
+  "cropName": string,
+  "diseaseName": string,
+  "severity": "Low" | "Medium" | "High",
+  "treatments": [
+    {
+      "name": string,
+      "usage": string,
+      "type": "Organic" | "Chemical" | "Manual",
+      "averageCostInr": number
+    }
+  ]
+}
+
+Rules:
+- cropName should match the crop implied by the image / PlantNet result.
+- diseaseName: specific disease or "Healthy" if no clear disease.
+- Provide 3 to 5 treatments available in typical Indian agri retail.
+- averageCostInr: realistic rounded INR estimate per treatment package or application.
+- Keep usage short and practical.`
+
+  const userMsg = `PlantNet identification:
+- Common name: ${params.plantCommonName}
+- Scientific name: ${params.plantScientificName}
+- Confidence score: ${params.plantNetScore.toFixed(4)}
+
+Analyze the image for disease or deficiency and fill the JSON.`
+
+  const base64Data = params.base64Image.split(',')[1] || params.base64Image
+  const mimeType = params.base64Image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg'
+
+  const model = client.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction,
+    generationConfig: {
+      maxOutputTokens: 1200,
+      temperature: 0.35,
+      topP: 0.9,
+      responseMimeType: 'application/json',
+    },
+  })
+
+  const parts: Part[] = [
+    { text: userMsg },
+    { inlineData: { data: base64Data, mimeType } },
+  ]
+
+  const result = await withTimeout(model.generateContent(parts), 25_000, 'leaf-disease-json')
+  const rawText = extractResponseText(result)
+  const parsed = parseModelJsonObject(rawText)
+  return normalizeLeafDiseaseAnalysis(parsed, params.plantCommonName)
 }
 

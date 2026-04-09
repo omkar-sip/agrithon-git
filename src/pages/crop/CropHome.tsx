@@ -136,7 +136,7 @@ export default function CropHome() {
                                   <span className="font-bold">Source:</span>{' '}
                                   {item.source === 'weather' ? '🌤️ Weather Data'
                                     : item.source === 'market' ? '📊 Market Data'
-                                    : item.source === 'advisory' ? '🌾 Crop Advisory'
+                                    : item.source === 'advisory' ? '🌾 Fasal Salah'
                                     : '👥 Community'}
                                 </p>
                               </div>

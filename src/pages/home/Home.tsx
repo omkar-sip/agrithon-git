@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../store/useAuthStore'
 import type { WeatherData } from '../../store/useWeatherStore'
 import { useWeather } from '../../hooks/useWeather'
-import { useHomeInsights, type AiTask } from '../../hooks/useHomeInsights'
+import { useHomeInsights } from '../../hooks/useHomeInsights'
 import WeatherWidget from '../../components/shared/WeatherWidget'
 import BannerCarousel from '../../components/shared/BannerCarousel'
 import type { BannerSlide } from '../../components/shared/BannerCarousel'
@@ -51,6 +51,7 @@ type ToolShortcut = {
   route: string
   icon: LucideIcon
   tint: string
+  featured?: boolean
 }
 
 const formatRelativeMinutes = (t: TFunction, minutes: number) => {
@@ -203,7 +204,7 @@ const generateInsights = (
       humidity: humidityLabel,
     }),
     action: t('insights.viewAdvisory'),
-    actionRoute: '/crop/advisory',
+      actionRoute: '/crop-advisory',
     priority: 'medium',
     colorScheme: 'amber',
     timestamp: formatRelativeMinutes(t, 30),
@@ -215,22 +216,13 @@ const generateInsights = (
     title: t('insights.seasonalTitle'),
     description: t('insights.seasonalDescription'),
     action: t('insights.learnMore'),
-    actionRoute: '/crop/advisory',
+      actionRoute: '/crop-advisory',
     priority: 'low',
     colorScheme: 'purple',
     timestamp: formatRelativeMinutes(t, 60),
   })
 
   return insights
-}
-
-const AI_TASK_ICONS: Record<string, LucideIcon> = {
-  '🌾': Sprout,
-  '💧': Droplets,
-  '🌡️': ThermometerSun,
-  '📊': TrendingUp,
-  '🐛': Bug,
-  '🌿': Leaf,
 }
 
 const stagger = {
@@ -307,6 +299,15 @@ export default function Home() {
     language
   )
   const toolShortcuts: ToolShortcut[] = [
+    {
+      id: 'crop-advisory',
+      title: '🌾 Fasal Salah',
+      subtitle: 'Get crop recommendations based on your land & weather',
+      route: '/crop-advisory',
+      icon: Leaf,
+      tint: 'bg-brand-50 text-brand-700 border-brand-100',
+      featured: true,
+    },
     {
       id: 'mandi',
       title: 'Mandi Saathi',
@@ -410,14 +411,23 @@ export default function Home() {
               <button
                 key={tool.id}
                 onClick={() => navigate(tool.route)}
-                className={`rounded-2xl border p-4 text-left shadow-card hover:shadow-card-md transition-all active:scale-[0.99] ${tool.tint}`}
+                className={`rounded-2xl border p-4 text-left shadow-card hover:shadow-card-md transition-all active:scale-[0.99] ${
+                  tool.featured ? 'ring-1 ring-brand-200/70' : ''
+                } ${tool.tint}`}
               >
                 <div className="flex items-start gap-3">
                   <div className="rounded-2xl bg-white/80 p-3">
                     <Icon size={18} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-neutral-900">{tool.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-neutral-900">{tool.title}</p>
+                      {tool.featured && (
+                        <span className="rounded-full bg-white/85 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+                          AI
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-1 text-xs text-neutral-600">{tool.subtitle}</p>
                   </div>
                 </div>
@@ -532,7 +542,6 @@ export default function Home() {
           ) : aiTasks.length > 0 ? (
             aiTasks.map((task, index) => {
               const taskColors = AI_TASK_COLOR_MAP[task.color] || AI_TASK_COLOR_MAP.green
-              const TaskIcon = AI_TASK_ICONS[task.icon] || Sprout
 
               return (
                 <div

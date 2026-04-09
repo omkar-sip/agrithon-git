@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   Mic,
+  Leaf,
   Search,
   Settings2,
   ShieldCheck,
@@ -31,6 +32,13 @@ const FEATURE_MENU_ITEMS = [
     description: 'Check mandi rates and list produce with reference pricing.',
     route: '/marketplace',
     icon: Search,
+  },
+  {
+    id: 'crop-advisory',
+    title: 'Fasal Salah',
+    description: 'Get crop recommendations from your land, water, and weather context.',
+    route: '/crop-advisory',
+    icon: Leaf,
   },
   {
     id: 'mitti-sehat',

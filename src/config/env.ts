@@ -63,6 +63,10 @@ export const env = {
   msg91SenderId: readConfiguredEnv(import.meta.env.VITE_MSG91_SENDER_ID) || 'AGRITH',
   msg91Route: readEnv(import.meta.env.VITE_MSG91_ROUTE) || '4',
   msg91Country: readEnv(import.meta.env.VITE_MSG91_COUNTRY) || '91',
+
+  /** PlantNet — https://my.plantnet.org/ (browser calls should use a backend in production; dev uses Vite proxy) */
+  plantnetApiKey: readConfiguredEnv(import.meta.env.VITE_PLANTNET_API_KEY),
+  plantnetProject: readEnv(import.meta.env.VITE_PLANTNET_PROJECT) || 'all',
 }
 
 const browserGeminiEnabled = Boolean(env.geminiApiKey) && (!isProduction || env.allowBrowserGemini)
@@ -75,6 +79,7 @@ export const apiAvailability = {
   hasOpenWeatherKey: Boolean(env.openWeatherApiKey),
   hasAgmarknetKey: Boolean(env.agmarknetApiKey),
   hasMsg91AuthKey: browserMsg91Enabled,
+  hasPlantnetKey: Boolean(env.plantnetApiKey),
 }
 
 export const runtimeSecurity = {

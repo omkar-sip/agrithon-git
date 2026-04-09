@@ -3,6 +3,24 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      // Dev-only: avoids browser CORS when calling PlantNet from localhost
+      '/plantnet-api': {
+        target: 'https://my-api.plantnet.org',
+        changeOrigin: true,
+        secure: true,
+        rewrite: path => path.replace(/^\/plantnet-api/, ''),
+        configure: proxy => {
+          proxy.on('proxyReq', proxyReq => {
+            // PlantNet rejects localhost/browser origins; send this as a server-side request instead.
+            proxyReq.removeHeader('origin')
+            proxyReq.removeHeader('referer')
+          })
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

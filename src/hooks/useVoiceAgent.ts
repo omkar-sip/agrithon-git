@@ -23,7 +23,7 @@ const LANG_BCP47: Record<string, string> = {
   pa: 'pa-Guru-IN',
 }
 
-const GEMINI_TTS_SOFT_TIMEOUT_MS = 1600
+const GEMINI_TTS_SOFT_TIMEOUT_MS = 650
 
 const decodeBase64Pcm = (base64Data: string): Int16Array => {
   const binary = atob(base64Data)
@@ -264,25 +264,25 @@ export function useVoiceAgent(
       setError(null)
 
       try {
-        const geminiAudio = await withTimeout(
-          synthesizeSarpanchSpeech({ text: clean, language }),
-          GEMINI_TTS_SOFT_TIMEOUT_MS
-        ).catch(() => null)
-        if (abortRef.current) return
-
-        if (geminiAudio) {
-          await playGeminiAudio(geminiAudio)
-          if (!abortRef.current) setState('idle')
-          return
-        }
-
+        // Start with browser TTS for lowest perceived latency.
+        // Gemini TTS is kept as a fallback path below.
         await speakWithBrowser(clean)
         if (!abortRef.current) setState('idle')
       } catch {
         if (abortRef.current) return
 
         try {
-          await speakWithBrowser(clean)
+          const geminiAudio = await withTimeout(
+            synthesizeSarpanchSpeech({ text: clean, language }),
+            GEMINI_TTS_SOFT_TIMEOUT_MS
+          ).catch(() => null)
+          if (abortRef.current) return
+
+          if (!geminiAudio) {
+            throw new Error('Gemini TTS unavailable')
+          }
+
+          await playGeminiAudio(geminiAudio)
           if (!abortRef.current) setState('idle')
         } catch {
           const errorMessage = 'Unable to play voice response. Please tap and try again.'

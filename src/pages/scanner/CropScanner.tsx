@@ -140,6 +140,8 @@ export default function CropScanner() {
         setError('Not a valid plant image')
       } else if (msg.includes('Plant match confidence is too low')) {
         setError('Plant match confidence is too low. Retake a clearer photo of one leaf and try again.')
+      } else if (msg.includes('Invalid disease analysis JSON')) {
+        setError('The scan response was incomplete. Please try the scan once more with a clear photo of one leaf.')
       } else {
         setError(msg)
       }

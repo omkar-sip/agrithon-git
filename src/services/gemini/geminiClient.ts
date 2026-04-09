@@ -1110,11 +1110,128 @@ The leaves show characteristic brown spots with yellow halos, indicating early-s
 // Leaf Scanner — structured disease JSON (Gemini Vision)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const parseModelJsonObject = (raw: string): unknown => {
+const extractJsonCandidate = (raw: string): string => {
   const trimmed = raw.trim()
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
-  const jsonStr = fence ? fence[1].trim() : trimmed
-  return JSON.parse(jsonStr)
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const unfenced = fence ? fence[1].trim() : trimmed
+
+  const objectStart = unfenced.indexOf('{')
+  const objectEnd = unfenced.lastIndexOf('}')
+  if (objectStart >= 0 && objectEnd > objectStart) {
+    return unfenced.slice(objectStart, objectEnd + 1)
+  }
+
+  const arrayStart = unfenced.indexOf('[')
+  const arrayEnd = unfenced.lastIndexOf(']')
+  if (arrayStart >= 0 && arrayEnd > arrayStart) {
+    return unfenced.slice(arrayStart, arrayEnd + 1)
+  }
+
+  return unfenced
+}
+
+const escapeNewlinesInsideStrings = (input: string): string => {
+  let result = ''
+  let inString = false
+  let escapeNext = false
+
+  for (const char of input) {
+    if (escapeNext) {
+      result += char
+      escapeNext = false
+      continue
+    }
+
+    if (char === '\\') {
+      result += char
+      escapeNext = true
+      continue
+    }
+
+    if (char === '"') {
+      inString = !inString
+      result += char
+      continue
+    }
+
+    if (inString && (char === '\n' || char === '\r')) {
+      result += '\\n'
+      continue
+    }
+
+    result += char
+  }
+
+  return result
+}
+
+const repairCommonJsonIssues = (input: string): string => {
+  return escapeNewlinesInsideStrings(
+    input
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .replace(/\u00A0/g, ' ')
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/([}\]"0-9eEfalr-u])(\s*)(?="[^"]+"\s*:)/g, '$1,$2')
+      .replace(/([}\]"0-9eEfalr-u])(\s*)(?=[{\[])/g, '$1,$2')
+  )
+}
+
+const parseModelJsonObject = (raw: string): unknown => {
+  const candidate = extractJsonCandidate(raw)
+  const attempts = [
+    candidate,
+    repairCommonJsonIssues(candidate),
+  ]
+
+  let lastError: unknown = null
+  for (const attempt of attempts) {
+    try {
+      return JSON.parse(attempt)
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  const message =
+    lastError instanceof Error
+      ? lastError.message
+      : 'Unknown JSON parsing error'
+  throw new Error(`Invalid disease analysis JSON. ${message}`)
+}
+
+const repairStructuredJsonWithGemini = async (
+  client: GoogleGenerativeAI,
+  raw: string,
+  schemaDescription: string,
+): Promise<string> => {
+  const repairModel = client.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction: `You repair malformed JSON from a previous model step.
+Return ONLY valid JSON.
+Do not add commentary.
+Preserve the original meaning while fitting this schema:
+${schemaDescription}`,
+    generationConfig: {
+      maxOutputTokens: 1200,
+      temperature: 0.1,
+      topP: 0.8,
+      responseMimeType: 'application/json',
+    },
+  })
+
+  const repairPrompt = `Convert this malformed JSON-like response into valid JSON only.
+
+Malformed response:
+${raw}`
+
+  const repairResult = await withTimeout(
+    repairModel.generateContent(repairPrompt),
+    15_000,
+    'structured-json-repair'
+  )
+
+  return extractResponseText(repairResult)
 }
 
 const asTreatmentType = (value: unknown): LeafTreatment['type'] => {
@@ -1238,6 +1355,20 @@ Rules:
 - averageCostInr: realistic rounded INR estimate per treatment package or application.
 - Keep usage short and practical.`
 
+  const jsonSchemaDescription = `{
+  "cropName": string,
+  "diseaseName": string,
+  "severity": "Low" | "Medium" | "High",
+  "treatments": [
+    {
+      "name": string,
+      "usage": string,
+      "type": "Organic" | "Chemical" | "Manual",
+      "averageCostInr": number
+    }
+  ]
+}`
+
   const userMsg = `PlantNet identification:
 - Common name: ${params.plantCommonName}
 - Scientific name: ${params.plantScientificName}
@@ -1266,7 +1397,16 @@ Analyze the image for disease or deficiency and fill the JSON.`
 
   const result = await withTimeout(model.generateContent(parts), 25_000, 'leaf-disease-json')
   const rawText = extractResponseText(result)
-  const parsed = parseModelJsonObject(rawText)
+  let parsed: unknown
+
+  try {
+    parsed = parseModelJsonObject(rawText)
+  } catch (error) {
+    console.warn('[Leaf Scanner] Invalid JSON from Gemini, attempting repair', error)
+    const repairedText = await repairStructuredJsonWithGemini(client, rawText, jsonSchemaDescription)
+    parsed = parseModelJsonObject(repairedText)
+  }
+
   return normalizeLeafDiseaseAnalysis(parsed, params.plantCommonName)
 }
 

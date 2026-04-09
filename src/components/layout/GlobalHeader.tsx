@@ -10,6 +10,7 @@ import {
   Landmark,
   LogOut,
   Menu,
+  MessageSquareText,
   Mic,
   Leaf,
   Search,
@@ -24,6 +25,7 @@ import toast from 'react-hot-toast'
 import { signOut as firebaseSignOut } from '../../services/firebase/authService'
 import { useAuthStore } from '../../store/useAuthStore'
 import { LANGUAGE_META, SUPPORTED_LANGUAGES, useLanguageStore } from '../../store/useLanguageStore'
+import { GOVERNMENT_FARMER_PORTAL_URL, isExternalUrl, openExternalUrl } from '../../utils/externalLinks'
 
 const FEATURE_MENU_ITEMS = [
   {
@@ -65,8 +67,15 @@ const FEATURE_MENU_ITEMS = [
     id: 'sarkari-yojana',
     title: 'Sarkari Yojana',
     description: 'Filter schemes and check eligibility quickly.',
-    route: '/sarkari-yojana',
+    route: GOVERNMENT_FARMER_PORTAL_URL,
     icon: Landmark,
+  },
+  {
+    id: 'kisan-kaksha',
+    title: 'Kisan Kaksha',
+    description: 'Join farmer discussions and open curated learning resources.',
+    route: '/kisan-kaksha',
+    icon: MessageSquareText,
   },
   {
     id: 'sarpanch-salah',
@@ -363,7 +372,7 @@ export default function GlobalHeader() {
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => navigate(item.route)}
+                        onClick={() => (isExternalUrl(item.route) ? openExternalUrl(item.route) : navigate(item.route))}
                         className="rounded-[26px] border border-neutral-200 bg-neutral-50 p-4 shadow-sm"
                       >
                         <div className="flex items-start gap-3">

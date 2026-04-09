@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { isExternalUrl, openExternalUrl } from '../../utils/externalLinks'
 
 export interface BannerSlide {
   id: string
@@ -81,6 +82,15 @@ export default function BannerCarousel({ slides, interval = 4000 }: BannerCarous
 
   if (slides.length === 0) return null
 
+  const handleSlideOpen = (route: string) => {
+    if (isExternalUrl(route)) {
+      openExternalUrl(route)
+      return
+    }
+
+    navigate(route)
+  }
+
   const slideVariants = {
     enter: (d: number) => ({ x: d > 0 ? '100%' : '-100%', opacity: 0.3 }),
     center: { x: 0, opacity: 1 },
@@ -105,7 +115,7 @@ export default function BannerCarousel({ slides, interval = 4000 }: BannerCarous
             animate="center"
             exit="exit"
             transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
-            onClick={() => navigate(slides[current].route)}
+            onClick={() => handleSlideOpen(slides[current].route)}
             className="absolute inset-0 w-full h-full cursor-pointer block"
           >
             <img

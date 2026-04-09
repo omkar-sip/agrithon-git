@@ -2,7 +2,7 @@
 
 This file is a lightweight path index to quickly locate code and reduce repeated repository scans.
 
-- Generated: 2026-04-09 05:35:21 +05:30
+- Generated: 2026-04-09 08:54:35 +05:30
 - Root: F:\Sarpanch AI
 - Excluded directories: .git, .tmp, node_modules
 - Regenerate: powershell -ExecutionPolicy Bypass -File scripts/generate-codebase-tree.ps1
@@ -134,6 +134,7 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |   |-- CommunityIntel.tsx
 |   |   |   |-- CropAdvisory.tsx
 |   |   |   |-- CropHome.tsx
+|   |   |   |-- GovernmentSchemesRedirect.tsx
 |   |   |   |-- HyperlocalAlerts.tsx
 |   |   |   |-- MarketPrices.tsx
 |   |   |   |-- SchemesBenefits.tsx
@@ -235,6 +236,7 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |   |   |-- colorSystem.ts
 |   |   |-- cropCalendar.ts
 |   |   |-- dateHelper.ts
+|   |   |-- externalLinks.ts
 |   |   |-- leafScannerPdf.ts
 |   |   |-- offline.ts
 |   |   \-- unitConverter.ts
@@ -247,6 +249,7 @@ This file is a lightweight path index to quickly locate code and reduce repeated
 |-- .gitignore
 |-- AGENTS.md
 |-- CODEBASE_TREE.md
+|-- Codebaseknowledge.md
 |-- eslint.config.js
 |-- final_implementations.md
 |-- firebase.json

@@ -20,7 +20,7 @@ const CropAdvisory     = lazy(() => import('../pages/crop/CropAdvisory'))
 const WeatherAlerts    = lazy(() => import('../pages/crop/WeatherAlerts'))
 const MarketPrices     = lazy(() => import('../pages/crop/MarketPrices'))
 const SoilHealth       = lazy(() => import('../pages/crop/SoilHealth'))
-const SchemesBenefits  = lazy(() => import('../pages/crop/SchemesBenefits'))
+const GovernmentSchemesRedirect = lazy(() => import('../pages/crop/GovernmentSchemesRedirect'))
 const CommunityIntel   = lazy(() => import('../pages/crop/CommunityIntel'))
 const HyperlocalAlerts = lazy(() => import('../pages/crop/HyperlocalAlerts'))
 const SupplyChain      = lazy(() => import('../pages/crop/SupplyChain'))
@@ -113,7 +113,7 @@ const router = createBrowserRouter([
       { path: 'mitti-sehat',     element: <S><SoilHealth /></S> },
       { path: 'kheti-kharcha',   element: <S><KhetiKharcha /></S> },
       { path: 'sauda-suraksha',  element: <S><SaudaSuraksha /></S> },
-      { path: 'sarkari-yojana',  element: <S><SchemesBenefits /></S> },
+      { path: 'sarkari-yojana',  element: <S><GovernmentSchemesRedirect /></S> },
       { path: 'farm-rental',     element: <S><FarmRentalHome /></S> },
       { path: 'farm-rental/service/:id', element: <S><ServiceDetail /></S> },
       { path: 'farm-rental/:categoryId', element: <S><FarmRentalCategory /></S> },
@@ -124,7 +124,7 @@ const router = createBrowserRouter([
       { path: 'crop/weather',   element: <S><WeatherAlerts /></S> },
       { path: 'crop/market',    element: <S><MarketPrices /></S> },
       { path: 'crop/soil',      element: <S><SoilHealth /></S> },
-      { path: 'crop/schemes',   element: <S><SchemesBenefits /></S> },
+      { path: 'crop/schemes',   element: <S><GovernmentSchemesRedirect /></S> },
       { path: 'crop/community', element: <S><CommunityIntel /></S> },
       { path: 'crop/alerts',    element: <S><HyperlocalAlerts /></S> },
       { path: 'crop/chain',     element: <S><SupplyChain /></S> },
@@ -155,6 +155,7 @@ const router = createBrowserRouter([
 
       // Community
       { path: 'forum', element: <S><Forum /></S> },
+      { path: 'kisan-kaksha', element: <S><Forum /></S> },
     ],
   },
 

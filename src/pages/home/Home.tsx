@@ -14,6 +14,7 @@ import {
   Bug,
   Leaf,
   Mic,
+  MessageSquareText,
   type LucideIcon,
 } from 'lucide-react'
 import type { TFunction } from 'i18next'
@@ -30,6 +31,7 @@ import weatherBanner from '../../assets/weather-banner.png'
 import cropDiseaseBanner from '../../assets/crop-disease-banner.png'
 import govtSchemesBanner from '../../assets/govt-schemes-banner.png'
 import { formatLocalizedDate, formatLocalizedNumber } from '../../i18n'
+import { GOVERNMENT_FARMER_PORTAL_URL, isExternalUrl, openExternalUrl } from '../../utils/externalLinks'
 
 type Insight = {
   id: string
@@ -86,7 +88,7 @@ const buildBannerSlides = (t: TFunction): BannerSlide[] => [
     id: 'b4',
     image: govtSchemesBanner,
     alt: t('home.govtSchemesBannerAlt'),
-    route: '/sarkari-yojana',
+    route: GOVERNMENT_FARMER_PORTAL_URL,
   },
 ]
 
@@ -344,9 +346,17 @@ export default function Home() {
       id: 'yojana',
       title: 'Sarkari Yojana',
       subtitle: 'Find eligible schemes',
-      route: '/sarkari-yojana',
+      route: GOVERNMENT_FARMER_PORTAL_URL,
       icon: Landmark,
       tint: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    },
+    {
+      id: 'kisan-kaksha',
+      title: 'Kisan Kaksha',
+      subtitle: 'Farmer community, useful resources, and video learning',
+      route: '/kisan-kaksha',
+      icon: MessageSquareText,
+      tint: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     },
     {
       id: 'salah',
@@ -410,7 +420,7 @@ export default function Home() {
             return (
               <button
                 key={tool.id}
-                onClick={() => navigate(tool.route)}
+                onClick={() => (isExternalUrl(tool.route) ? openExternalUrl(tool.route) : navigate(tool.route))}
                 className={`rounded-2xl border p-4 text-left shadow-card hover:shadow-card-md transition-all active:scale-[0.99] ${
                   tool.featured ? 'ring-1 ring-brand-200/70' : ''
                 } ${tool.tint}`}

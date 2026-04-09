@@ -2,10 +2,12 @@ import { jsPDF } from 'jspdf'
 import type { LeafDiseaseAnalysis } from '../types/leafScanner'
 
 const CARD_BODY_LINE_HEIGHT = 5
+const CARD_SIDE_PADDING = 8
 const CARD_TITLE_TOP = 7
 const CARD_BODY_TOP = 14
 const CARD_BOTTOM_PADDING = 6
 const TREATMENT_BODY_LINE_HEIGHT = 4.8
+const TREATMENT_SIDE_PADDING = 8
 const TREATMENT_BODY_TOP = 28
 const TREATMENT_BOTTOM_PADDING = 7
 
@@ -145,13 +147,13 @@ export function downloadLeafScanPdf(params: {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8)
     setTextColor(COLORS.muted)
-    doc.text(title.toUpperCase(), x + 5, top + 7)
+    doc.text(title.toUpperCase(), x + CARD_SIDE_PADDING, top + 7)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     setTextColor(COLORS.text)
-    const valueLines = doc.splitTextToSize(value, width - 10)
-    doc.text(valueLines, x + 5, top + 14)
+    const valueLines = doc.splitTextToSize(value, width - CARD_SIDE_PADDING * 2)
+    doc.text(valueLines, x + CARD_SIDE_PADDING, top + 14)
   }
 
   const drawParagraphCard = (
@@ -164,7 +166,7 @@ export function downloadLeafScanPdf(params: {
       bodyColor?: readonly [number, number, number]
     },
   ): void => {
-    const lines = doc.splitTextToSize(body, contentW - 12)
+    const lines = doc.splitTextToSize(body, contentW - CARD_SIDE_PADDING * 2)
     const bodyHeight = Math.max(lines.length, 1) * CARD_BODY_LINE_HEIGHT
     const boxHeight = CARD_BODY_TOP + bodyHeight + CARD_BOTTOM_PADDING
     ensureSpace(boxHeight + 2)
@@ -176,12 +178,12 @@ export function downloadLeafScanPdf(params: {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
     setTextColor(options?.titleColor ?? COLORS.text)
-    doc.text(title, margin + 6, y + CARD_TITLE_TOP)
+    doc.text(title, margin + CARD_SIDE_PADDING, y + CARD_TITLE_TOP)
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
     setTextColor(options?.bodyColor ?? COLORS.text)
-    doc.text(lines, margin + 6, y + CARD_BODY_TOP)
+    doc.text(lines, margin + CARD_SIDE_PADDING, y + CARD_BODY_TOP)
 
     y += boxHeight + 6
   }
@@ -261,7 +263,7 @@ export function downloadLeafScanPdf(params: {
   )
 
   params.analysis.treatments.forEach((t, index) => {
-    const usageLines = doc.splitTextToSize(t.usage, contentW - 14)
+    const usageLines = doc.splitTextToSize(t.usage, contentW - TREATMENT_SIDE_PADDING * 2)
     const usageHeight = Math.max(usageLines.length, 1) * TREATMENT_BODY_LINE_HEIGHT
     const cardHeight = TREATMENT_BODY_TOP + usageHeight + TREATMENT_BOTTOM_PADDING
     ensureSpace(cardHeight + 4)
@@ -273,7 +275,7 @@ export function downloadLeafScanPdf(params: {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
     setTextColor(COLORS.text)
-    doc.text(`${index + 1}. ${t.name}`, margin + 6, y + 8)
+    doc.text(`${index + 1}. ${t.name}`, margin + TREATMENT_SIDE_PADDING, y + 8)
 
     const typeLabel = t.type.toUpperCase()
     doc.setFont('helvetica', 'bold')
@@ -288,17 +290,17 @@ export function downloadLeafScanPdf(params: {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     setTextColor(COLORS.muted)
-    doc.text(`Estimated cost: INR ${t.averageCostInr}`, margin + 6, y + 15)
+    doc.text(`Estimated cost: INR ${t.averageCostInr}`, margin + TREATMENT_SIDE_PADDING, y + 15)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(9)
     setTextColor(COLORS.text)
-    doc.text('How to use', margin + 6, y + 22)
+    doc.text('How to use', margin + TREATMENT_SIDE_PADDING, y + 22)
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     setTextColor(COLORS.text)
-    doc.text(usageLines, margin + 6, y + TREATMENT_BODY_TOP)
+    doc.text(usageLines, margin + TREATMENT_SIDE_PADDING, y + TREATMENT_BODY_TOP)
 
     y += cardHeight + 5
   })
